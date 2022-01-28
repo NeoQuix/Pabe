@@ -1,0 +1,37 @@
+#! /usr/bin/env python3
+
+# Version 1.0 ~Spartak Ehrlich
+# Comments are in the Code
+# Idea: Get the Header, run though all 255 (2^8) Combinations
+# If the first for Bytes are the Magic Bytes of Elf, then run i is the Key
+# (First Byte is enough, but i like .ELF looks better)
+# Fixme will be overwritten when the Programm runs the first time, but after that
+# the File should not Change because the Loop will End with i=0 (XOR with 0 does not change anything)
+# so the Programm then just overwrites fixme with itself 
+
+import subprocess
+
+def main():
+    with open("fixme", "rb") as file: # Open the File in Read + Byte Mode
+        header = file.read(64)
+        data = file.read()
+
+    decHeader = bytearray(64) # Make an empty Bytearray for the decrypted Header
+
+    for i in range(0,2**8): # For all 8 Bit Combinations
+        for j in range(0,64): # XOR the Header with run i
+            decHeader[j] = header[j] ^ i 
+        
+        if decHeader[0] == 0x7F and decHeader[1] == 0x45 and decHeader[2] == 0x4c and decHeader[3] == 0x46: # If the Header Bytes are .ELF: break
+            key = i
+            break
+
+    with open("fixme", "wb") as file: # Open the File in Write + Byte Mode
+        file.write(decHeader)
+        file.write(data)
+    
+    proz = subprocess.run(['./fixme'], shell = True) # Run fixme in a Shell
+
+
+if __name__ == '__main__':
+    main()

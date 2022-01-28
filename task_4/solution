@@ -1,0 +1,30 @@
+#! /usr/bin/env python3
+
+# Version 1.0 ~ Jakob, Spartak, Sean
+# the /proc directory has all running processes in it
+# There is an Directory for every Process named after its PID (Process ID) 
+# in which are Status Informations, FDs, Maps etc. etc. 
+# Also there is a File called "status", with even more Informations 
+# and there is a line called Seccomp, which identifies if a seccomp is enables or not
+# So we just iterate over every Process Statusfile seccomp line and add a one if the process 
+# is running in seccomp Mode (!=0)
+# In Logic:
+# Add +1 to Counter if /proc/[pid]/status line Seccomp != 0 
+
+import os # import os for listdir
+
+def main():
+        number = 0 # Count Number
+
+        for pid in os.listdir('/proc'): # iterate over all directories in /proc
+                if pid.isnumeric(): # check if the name is a number
+                        with open('/proc/' + pid + '/status', 'r') as p: # open Status file in read mode
+                                for line in p: # find line with seccomp and check if value is not 0
+                                        if line.startswith('Seccomp'):
+                                                if not '0' in line:
+                                                        number += 1 # inc Count Number
+        print(number)
+
+
+if __name__ == '__main__':
+        main()

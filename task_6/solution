@@ -1,0 +1,55 @@
+#! /usr/bin/env python3
+
+# Ver. 1.1 ~ Jakob, Spartak, Sean
+
+# We reverse engineered the check_key Binary with Ghidra + gdb + IDA Pro
+# The Main function justs checks the Input (if we have 2 Arguments; the first is always the Binary name, so it checks if we gave it a Key)
+# and then calls check_key which has some requirements for the Key
+# These requirements are:
+# 1. The Stringlength should be 32 (excluding Nullbyte, because the size is measured with strlen)
+# 2. The Chars in the String should only be in the range of 65 - 90 (ASCII; 'A' - 'Z')
+# 3. The Char at index 0 should be larger then the Char at index 31 by at least four (str[0] - 4 > str[31])
+# 4. The Sum of all Chars should be an odd Number
+# If all the requirements are meet, the binary prints:
+# 'nice job! the key you provided is correct'
+
+import random
+import subprocess
+
+def generateKey(): # generates a valid Key and returns it
+    start = random.randint(71, 90) # First Char will be at least an 'F', max 'Z'
+    key = chr(start)
+    sum = start
+
+    for k in range(30): # Generate 30 Random Chars (and save the sum of all of them)
+        char = random.randint(65, 90)
+        sum += char
+        key += chr(char)
+    if sum % 2 == 0: # Append the last Char (should change the Number to an odd Number + does not break requirement 3)
+        if start % 2 == 0:
+            key += chr(start - 5)
+        else:
+            key += chr(start - 6)
+    else:
+        if start % 2 == 0:
+            key += chr(start - 6)
+        else:
+            key += chr(start - 5)
+
+    # Runs Check Key to be sure, that the Key is correct
+    # (Theoretically not needed, because the Keys are generated to be valid, but yeah have fun with it :P)
+    proz = subprocess.run(["./check_key", key], capture_output=True)
+    out = proz.stdout
+    error = "not correct"
+    if error in out.decode("utf-8"):
+        print(out.decode("utf-8")) # this line will never be printed
+
+    return key
+
+if __name__ == '__main__':
+    result = set() # make a set (just be sure, that the Keys are all unique)
+    while len(result) < 500:
+        result.add(generateKey())
+
+    for i in range(500):
+        print(result.pop())

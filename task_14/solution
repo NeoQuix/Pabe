@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+
+# v 0.9 jakob, Spartak, Sean 
+# the programm gets the html file of a given url
+# afterwards this html file is parsed in order to get the title 
+# then the title is transformed by adding a offset to each char
+# this result is then printed
+
+
+import requests as re 
+
+response =""
+def sec(): # open file with input
+    tmp =""
+    with open("input.txt", "r") as f:
+        tmp = f.read(256)
+    return tmp
+
+def third(param1): # get html file of domain, pass the data to writeFunc
+    res = re.get(param1)
+    erg = writeFunc(str(res.text))
+    return erg
+def writeFunc(param1): # get title of the page
+    c = 0
+    global response
+    if response == "":
+        for i, val in enumerate(param1):
+            if param1[i] == '<':
+                c = 1
+            else:
+                if c != 0:
+                    if c == 7:
+                        j = 0 
+                        while (i+j < len(param1)) and (param1[i+j] != '<') and (j < len(param1)):                            
+                            j += 1
+                        response =  param1[i:j+i]
+                        return 1
+                    if c == 4 and (param1[i] =='l' or param1[i] =='L'):
+                        c = 5
+                    else:
+                        if (((c == 1) or (c == 3)) and ((param1[i] == 't') or (param1[i] == 'T'))):
+                            c += 1
+                        else:
+                            if c == 6 and param1[i] == '>':
+                                c = 7
+                            else:
+                                if ((c == 2) and ((param1[i] == 'i' or (param1[i] == 'I')))):
+                                    c = 3
+                                else:
+                                    if c == 5 and (param1[i] == 'e' or param1[i] == 'E'):
+                                        c = 6
+                                    else:
+                                        c = 0
+
+            
+
+def fourth(param1): # calculate the string
+    tmp = []
+    for idx, val in enumerate(response):
+        val1 = int(ord(val)+(param1))            
+        tmp.append(str(chr(val1)))
+    tmp = ''.join(tmp)    
+    return tmp
+
+def main():
+    res = -10
+    tmp = sec()
+    if tmp == "":
+        res = -1
+    else:
+        tmp1 = third('http://'+tmp)
+        if tmp1 == 1:
+            if response == "":
+                res = -4
+            else:
+                erg = fourth(13)
+                print(erg)
+                res = 0
+    return res
+
+
+if __name__ == '__main__':    
+    main()

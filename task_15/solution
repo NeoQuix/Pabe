@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+# Ver. 1.0 ~ Spartak, Sean, Jakob
+
+import subprocess
+
+def function():
+    # Run our Python Script in gdb, capture output (Flag will be printet on stderr in the script, so we print stderr to stdout)
+    proc = subprocess.run(["gdb -q -x python.py"], shell = True, capture_output = True)
+    print(proc.stderr.decode("utf-8")[:-1])
+
+
+if __name__ == "__main__":
+    function()

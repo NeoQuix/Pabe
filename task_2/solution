@@ -1,0 +1,100 @@
+#! /usr/bin/env python3
+
+# Version 1.0 ~Spartak, Sean, Jakob
+# How the Parser works:
+# 1. Reads the ELF Header, needs the following Data:
+# - Start of Section Headers, Size of Section Headers, Strintable Index
+# ----------------------------------------------------------------------
+# 2. Go into the .shstrtab Header and from there read where the actual Stringtable is stored (also get the Size)
+# ----------------------------------------------------------------------
+# 3. Get the Offset of .dynstr und .dynsym in the Stringtable 
+# ----------------------------------------------------------------------
+# 4. Calculate the Offset where FLAG is in .dynsym and print the value of it
+# ----------------------------------------------------------------------
+# As a side Note: We looked at all the different Header/Structs of Sections/Strtables etc. and calculated the Offset via the Structs
+# So when you see numbers which look pretty random (like 24 Bytes into a Header), we just addressed the variable in the Header which was needed for us
+# (The other ones before and after that are not needed for this task; we don't wanted to write a whole ELF Parser ;-)) 
+import struct
+
+# ElfParser Helper Class, but only the parts which are relevant for the Task 
+class ElfFileParser():
+    def __init__(self, header): # Reads the ElfHeader, saves the "Start of section Headers", "Size of Section Header" and "Stringtable Index"
+        self.file = header
+        self.sectionStartAdr = int.from_bytes(header[40:48], byteorder="little")
+        self.sectionSize = int.from_bytes(header[58:59], byteorder="little")
+        self.stringtableoffset = int.from_bytes(header[62:63], byteorder="little")
+        self.maxSections = int.from_bytes(header[60:61], byteorder="little")
+    
+    def printValues(self): # Print Method, only for Debug, NOT used in the final Code!
+        print("Section Start Adress (Absolut Bytes from Filestart): " + str(self.sectionStartAdr))
+        print("Section Size (in Bytes):                             " + str(self.sectionSize))
+        print("StringTable Section Offset:                          " + str(self.stringtableoffset))
+        print("Max Sections:                                        " + str(self.maxSections))
+
+    def getStringOffsetTable(self): # returns Stringtable Index
+        return self.stringtableoffset
+
+    def getSectionHeaderAddr(self, sectionNumber): # Calculates the Section Header Address (absolut offset in the File)
+        return self.sectionStartAdr + sectionNumber * self.sectionSize
+
+    def getSectionDataAddr(self, sectionHeaderAddr): # Returns the addr Field from the Section Header (static Offset, because we know how each Header looks like)
+        return int.from_bytes(self.file[sectionHeaderAddr + 24: sectionHeaderAddr + 32], byteorder = "little")
+
+    def getSectionDataSize(self, sectionHeaderAddr): # Returns the Data Size, also static Offset, because we know how each Section Header looks like
+        return int.from_bytes(self.file[sectionHeaderAddr + 32: sectionHeaderAddr + 40], byteorder = "little")
+
+    def findStringOffsetInTable(self, startAdress, string, size = None): # Searches for the Offset of a given Name in den Stringtable (.shstrtab; needs the .shstrtab Data Secion Address)
+        adress = startAdress + 1 # Stats with a Nullbyte, then "Strings" 
+        str = ""
+        offset = 0
+        max_num = self.maxSections
+        if size is not None:
+           max_num = size
+        for i in range(0, max_num): # Minimal Error: We need to go over the hole size specified in the .shstrtab Section Header (filed data), but we were a bit lazy; this still works
+            while self.file[adress] != 0:
+                str += chr(self.file[adress])
+                adress += 1
+            if str == string:
+                return offset
+            offset += 1
+            str = ""
+            adress += 1
+        
+    def littleEndian(self, str): # Changes the Byteorder for a given String of Bytes
+        length = len(str)
+        temp = ""
+        for i in range(0,length * 2, 2):
+            temp += str[-i -2 :-i -0]
+            pass
+        return temp
+
+def main():
+    with open("parseme", "rb") as file:
+        elffile = file.read()
+    
+    # Get the Header of the Elffile (Part 1)
+    s = ElfFileParser(elffile)
+
+    # Get .shstrtab Data Address in the File + it's size (Part 2)
+    shstrtabHeaderAddr = s.getSectionHeaderAddr(s.getStringOffsetTable())
+    shstrtabDataAddr = s.getSectionDataAddr(shstrtabHeaderAddr)
+    shstrtabDataSize = s.getSectionDataSize(shstrtabHeaderAddr)
+
+    # Get Offset of .dynstr and .dynsym (Part 3)
+    dynsymHeaderOffset = s.findStringOffsetInTable(shstrtabDataAddr, ".dynsym")
+    dynstrHeaderOffset = s.findStringOffsetInTable(shstrtabDataAddr, ".dynstr")
+
+    # Calc dynsym Data Addr + get Flag Offset (which Package it is; Part 4)
+    dynsymDataAddr = s.getSectionDataAddr(s.getSectionHeaderAddr(dynsymHeaderOffset))
+    size = s.getSectionDataSize(s.getSectionHeaderAddr(dynsymHeaderOffset))
+    offset = s.findStringOffsetInTable(dynsymDataAddr, "flag", size)
+    symbol = dynsymDataAddr + offset
+
+    # Just parse the symbol to the right format (little Endian + String)
+    sol = elffile[symbol: symbol + 8]
+    sol = s.littleEndian(sol.hex())
+    print(sol)
+    
+
+if __name__ == '__main__':
+    main()

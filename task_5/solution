@@ -1,0 +1,19 @@
+#! /usr/bin/env python3
+
+# Version 1.0 ~Spartak, Sean, Jakob
+# Comments for the Fixes are in the broken.c!
+# we call gcc with -o Pabe.out, to specify the Name of the Output File
+# I hope this count as a call to gcc without any Parameters
+# If not, we could have just removed -o Pabe and called a.out
+
+import subprocess
+
+def main():
+    proz = subprocess.run("gcc -o Pabe.out broken.c", shell=True) # Command to compile the broken.c
+    proz = subprocess.run("./Pabe.out PABE", shell=True, capture_output=True) # Run the Code and catch its output
+
+    out = proz.stdout # get the output
+    print(out.decode("utf-8")[46:-5]) # Slice the Part which is relevant for the Soulution ('Pabe is fun') but without ''
+
+if __name__ == "__main__":
+    main()

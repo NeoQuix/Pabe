@@ -1,0 +1,29 @@
+#! /usr/bin/env python3
+
+# Ver 1.0 ~ Spartak, Jakob, Sean
+
+# We did readelf -e broken | less and readelf -e /bin/ls
+# The Elfheader looked good, so we thought maybe it's a segment which makes problems
+# Because sections doesn't matter in runtime (so they can't make a linker error i guess?)
+# In the Program Headers we found that the Third Header had no Flags 
+# In ls it has the r + x Flags 
+# So we looked up it's offset in the File and changed the flag to 0x05 (which is the r + x Flag)
+
+import subprocess
+
+def main():
+    with open("broken", "rb") as file: # Open the File
+        data = bytearray(file.read()) # as Bytearray, because we want to change a Byte
+    
+    data[0xAC] = 0x05 # 0xAX is the Offset for the right Programm Header at the Flag Bytes (52 + 3 * 32 + 24)
+    # 52 = ELFHeader (32Bit)
+    # 3 * 32 = 3 Segment Headers before the relevant one (32 Byte Segment Header size)
+    # 24 for Flag Offset, 4 Bytes long, but we only need one (and little endian)
+    # 0x05 because it's the Flag for r + x (https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html)
+    with open("broken", "wb") as file:
+        file.write(data)
+
+    subprocess.run(["./broken"]) # Just run the Programm so it prints the flag 
+
+if __name__ == '__main__': # if the Programms runs twice it'll just change 0x05 with 0x05 so its no problem
+    main()

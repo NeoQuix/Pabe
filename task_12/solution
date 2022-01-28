@@ -1,0 +1,24 @@
+#! /usr/bin/env python3
+
+import subprocess
+
+# Ver. 1.0 ~ Sean, Jakob, Spartak
+
+# Run GDB with the python script in a Shell via Subprozess
+def main():
+    proc = subprocess.run(["gdb -q -x helper.py"], shell=True, capture_output=True)
+
+    # Subprocc captures the whole Output of the helper script and the helper script, there is every Breakpoint (with the name of the function )
+    solution = proc.stdout.decode("utf-8")
+
+    # Remove all '\n', split on ' ', only take lines with "Breakpoint", and then only the fourth Element (its a list of lists)
+    solution = list(filter(lambda x: x != "", solution.split('\n')))
+    solution = [line.split(" ") for line in solution]
+    solution = [line for line in solution if line[0] == "Breakpoint"]
+    solution = [line[4] for line in solution]
+
+    for line in solution:
+        print(line)
+
+if __name__ == '__main__':
+    main()

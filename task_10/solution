@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+from pwn import *
+from unicorn import *
+from unicorn.x86_const import *
+
+# Ver. 1.0 ~ Jakob, Sean, Spartak
+
+# We'll answer the 3 Subtasks here and in the Code: 
+# 1. What is the Assembler Code doing? 
+# In the first 3 lines eax, ebx, ecx will be set to 0 
+# Then 
+# 
+# 2. Find out why the error messages occur
+# The Memory Address (0x31337) and the Stack are not mapped 
+# So if the programm trys wo access these addresses the emulation get an Read Error
+# FIX: ==> Map these memory sections (for the Stack we made an Offset, and initialised the Stack Pointer esp) + we wrote 0x1337 at the Address 0x31337 (we also moved the Adressspace a bit to make sure that 0x31337 is part of it)
+# 3. Fix the Python code so that the emulation runs correctly
+# Down below in the Code
+
+DATA_ADDRESS32BIT = b"\x37\x13\x00\x00" # 0x1337 in Bytes (little Endian; 4 Bytes)
+
+def hook_code(uc, address, size, user_data):
+    print(">>> tracing eip = 0x%x " % address)
+    print(disasm(uc.mem_read(address, size)))
+
+
+# Added a Hock for Memory Access (inspired by the UNICON git example)
+def hook_memory(uc, access, address, size, value, user_data):
+    if access == UC_MEM_WRITE:
+        print(f">>> WRITE Access! Memory: {hex(address)}, Size: {hex(size)}, Data: {hex(value)}")
+    elif access == UC_MEM_READ:
+        print(f">>> READ Access! Memory: {hex(address)}, Size: {hex(size)}")
+    elif access == UC_MEM_WRITE_UNMAPPED:
+        print(f">>> WRITE Access with ERROR! Memory: {hex(address)}, Size: {hex(size)}, Data: {hex(value)}")
+    else:
+        print(f">>> READ Access with ERROR! Memory: {hex(address)}, Size: {hex(size)}")
+
+def main():
+    simple_asm = """
+        xor eax, eax
+        xor ebx, ebx
+        xor ecx, ecx
+        mov ecx, 0x1
+        mov eax, [0x31337]
+        mov ebx, 0x42
+        add eax, ebx
+        shl ecx, 0x2
+        add eax, ecx
+        push eax
+        push ebx
+        pop ecx
+        pop edx
+        lea eax, [ecx+eax]
+        lea ebx, [edx+ebx]
+    """
+
+    simple_asm_bytes = asm(simple_asm)
+
+    start_address_memory = 0x30000 # change start address since its was to high to access the value in 0x31337
+    stack_offset = 0x15000 # offset for stack, has to be in the mapped memory
+
+    try:
+
+        # create the Unicorn Engine eenginelator
+        engine = Uc(UC_ARCH_X86, UC_MODE_32)
+
+        # memory for the machine code
+        engine.mem_map(start_address_memory, 2 * 1024 * 1024)
+
+        # write the machine code to the memory
+        engine.mem_write(start_address_memory, simple_asm_bytes)
+
+        # New Code from us: 
+        # Map the StackPointer ESP (So Pop/Push work)
+        engine.reg_write(UC_X86_REG_ESP, start_address_memory + stack_offset)
+
+        # Write the desired Data at Address 0x31337
+        engine.mem_write(0x31337, DATA_ADDRESS32BIT)
+
+        # Added Hooks for Memory Read/Write Accesses (Errors too)
+        engine.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE | UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED, hook_memory) 
+
+        # trace instructions for debugging
+        engine.hook_add(UC_HOOK_CODE, hook_code)
+
+        # start the emulation
+        engine.emu_start(start_address_memory, start_address_memory + len(simple_asm_bytes))
+
+        # get the register contents
+        r_eax = engine.reg_read(UC_X86_REG_EAX)
+        r_ebx = engine.reg_read(UC_X86_REG_EBX)
+        r_ecx = engine.reg_read(UC_X86_REG_ECX)
+        r_edx = engine.reg_read(UC_X86_REG_EDX)
+
+        # print the register contents
+        print("eax = 0x%x" % r_eax)
+        print("ebx = 0x%x" % r_ebx)
+        print("ecx = 0x%x" % r_ecx)
+        print("edx = 0x%x" % r_edx)
+
+    except UcError as e:
+        print("ERROR: %s" % e)
+
+
+if __name__ == "__main__":
+    main()

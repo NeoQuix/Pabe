@@ -1,0 +1,17 @@
+#! /usr/bin/env python3
+
+import subprocess
+
+# Ver. 1.1 ~ Spartak
+
+# Run GDB with the python script in a Shell via Subprozess
+def main():
+    proc = subprocess.run(["gdb -q -x helper.py"], shell=True, capture_output=True)
+
+    # Subprocc captures the whole Output of the helper script and the helper script prints the Flag on STDERR (so i can easily fetch it here)
+    # Next lines are just get the Flag and print it on STDOUT (-1 because there is a new Line)
+    solution = proc.stderr.decode("utf-8")
+    print(solution[:-1])
+
+if __name__ == '__main__':
+    main()

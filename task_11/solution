@@ -1,0 +1,81 @@
+#! /usr/bin/env python3
+
+# Version 1.0 ~ Spartak
+# Constrains (in German, because I'm lazy): 
+# Triviale Bedingungen:
+# 1. Key muss aus 32 Zeichen bestehen
+# 2. Key darf nur aus 'A'-'Z' + '0'-'9' + 'a'-'z' bestehen (48-57; 65-90; 97-122)
+# Key spezifische Bedingungen:
+# 01. key[01] + 2 >= key[00]
+# 02. key[02] + 2 >= key[01]
+# 03. key[03] + 2 >= key[02]
+# 04. key[03] + 9 <  key[04]
+# 05. key[04] + 9 <  key[05]
+# 06. key[05] + 9 <  key[06]
+# 07. key[07] + 5 >= key[06]
+# 08. key[08] + 5 >= key[07]
+# 09. key[09] + 5 >= key[08] 
+# 10. key[00] * 2 >= key[31]
+# 11. key[01] * 2 >= key[30]
+# 12. key[02] * 2 >= key[29]
+# 13. key[17] - key[31] muss monoton streng steigend sein
+# 14. Summe von key[i] i = 0, 2, 4, ..., 30 muss ungerade sein
+# Bedingungen wurden mit Ghidra herrausgefunden + mit gdb verifiziert 
+# (hab geguckt wie weit der kommt in der check_key, wenn welche falsch wären, wüsste ich es weil er vor dem Ende rausspringt (und rax auf 0 setzt))
+
+from z3 import *
+
+def main():
+    # Delare 32 Variables (C0 - C31)
+    chars = [BitVec("C%2s" % (i), 64) for i in range(32)]
+
+    # Trivial Conditions 1 + 2
+    condTriv = [Or(And(48 <= chars[i], chars[i] <= 57) , And(65 <= chars[i], chars[i] <= 90), And(97 <= chars[i], chars[i] <= 122)) for i in range(32)]
+
+    # Key Conditions 1 - 14
+    cond01 = [chars[1] + 2 >= chars[0]]
+    cond02 = [chars[2] + 2 >= chars[1]]
+    cond03 = [chars[3] + 2 >= chars[2]]
+    cond04 = [chars[3] + 9 < chars[4]]
+    cond05 = [chars[4] + 9 < chars[5]]
+    cond06 = [chars[5] + 9 < chars[6]]
+    cond07 = [chars[7] + 5 >= chars[6]]
+    cond08 = [chars[8] + 5 >= chars[7]]
+    cond09 = [chars[9] + 5 >= chars[8]]
+    cond10 = [chars[0] * 2 >= chars[31]]
+    cond11 = [chars[1] * 2 >= chars[30]]
+    cond12 = [chars[2] * 2 >= chars[29]]
+    cond13 = [And(chars[i + 1] > chars[i]) for i in range(16, 31)]
+    cond14 = [chars[i] & 1 == 0 for i in range(0, 32, 2)]
+
+    # Allocate a Solver + Add Constrains
+    s = Solver()
+    s.add(condTriv + cond01 + cond02 + cond03 + cond04 + cond05 + cond06 + cond07 + cond08 + cond09 + cond10 + cond11 + cond12 + cond13 + cond14)
+
+    # Check if there is a Solution (there always will be one)
+    s.check()
+    m = s.model()
+
+    # My mastermind plan to print the Key
+    names = []
+    values = []
+
+    # Get the Var C0-C31 with their values (they are NOT sorted!)
+    for d in m.decls():
+        names.append(str(d.name()))
+        values.append(chr(m[d].as_long()))
+
+    # Zip them together
+    vars = sorted(zip(names,values))
+    sol = ""
+
+    # Add every single Char to the solution String
+    for x in range(0, 32):
+        sol += vars[x][1]
+
+    # Print the Solution String
+    print(sol)
+
+
+if __name__ == '__main__':
+    main()
