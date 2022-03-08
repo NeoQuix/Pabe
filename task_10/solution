@@ -13,8 +13,8 @@ from unicorn.x86_const import *
 # 
 # 2. Find out why the error messages occur
 # The Memory Address (0x31337) and the Stack are not mapped 
-# So if the programm trys wo access these addresses the emulation get an Read Error
-# FIX: ==> Map these memory sections (for the Stack we made an Offset, and initialised the Stack Pointer esp) + we wrote 0x1337 at the Address 0x31337 (we also moved the Adressspace a bit to make sure that 0x31337 is part of it)
+# So if the programm tries wo access these addresses the emulation get an Read Error
+# FIX: ==> Map these memory sections (for the Stack we made an Offset, and initialized the Stack Pointer esp) + we wrote 0x1337 at the Address 0x31337 (we also moved the Adressspace a bit to make sure that 0x31337 is part of it)
 # 3. Fix the Python code so that the emulation runs correctly
 # Down below in the Code
 

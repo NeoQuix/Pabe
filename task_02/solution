@@ -3,7 +3,7 @@
 # Version 1.0 ~Spartak, Sean, Jakob
 # How the Parser works:
 # 1. Reads the ELF Header, needs the following Data:
-# - Start of Section Headers, Size of Section Headers, Strintable Index
+# - Start of Section Headers, Size of Section Headers, Stringtable Index
 # ----------------------------------------------------------------------
 # 2. Go into the .shstrtab Header and from there read where the actual Stringtable is stored (also get the Size)
 # ----------------------------------------------------------------------
@@ -15,6 +15,9 @@
 # So when you see numbers which look pretty random (like 24 Bytes into a Header), we just addressed the variable in the Header which was needed for us
 # (The other ones before and after that are not needed for this task; we don't wanted to write a whole ELF Parser ;-)) 
 import struct
+from symtable import SymbolTable
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
 
 # ElfParser Helper Class, but only the parts which are relevant for the Task 
 class ElfFileParser():
@@ -94,6 +97,19 @@ def main():
     sol = elffile[symbol: symbol + 8]
     sol = s.littleEndian(sol.hex())
     print(sol)
+
+    # Elf Tools Part
+    with open('parseme', 'rb') as f:
+        elf = ELFFile(f)
+
+        for sec in elf.iter_sections():
+            if isinstance(sec, SymbolTableSection):
+                for sym in sec.iter_symbols():
+                    if sym.name == 'flag':
+                        solution = hex(sym.entry['st_value'])
+
+    print(solution)
+
     
 
 if __name__ == '__main__':

@@ -1,0 +1,51 @@
+pwndbg> disass main
+Dump of assembler code for function main:
+   0x0000555555555125 <+0>:     push   rbp                                                # Calling Convention Enter
+   0x0000555555555126 <+1>:     mov    rbp,rsp                                            # Calling Convention Enter
+   0x0000555555555129 <+4>:     mov    DWORD PTR [rbp-0x14],edi                           # Lege edi auf Basepointer - 20 (von 20 - 17 liegt edi) 
+   0x000055555555512c <+7>:     mov    QWORD PTR [rbp-0x20],rsi                           # Lege rsi auf Basepointer - 32 (von 32 - 25 liegt rsi)
+   0x0000555555555130 <+11>:    mov    QWORD PTR [rbp-0xc],0x0                            # Lege 0 auf Basepointer - 12 (von 12 - 5 liegt 0)
+   0x0000555555555138 <+19>:    mov    DWORD PTR [rbp-0x4],0x0                            # Lege 0 auf Basepointer - 4  (von 4 - 1 liegt 0)
+   0x000055555555513f <+26>:    jmp    0x555555555163 <main+62>                           # Sieht nach Loop aus!
+   0x0000555555555141 <+28>:    mov    eax,DWORD PTR [rbp-0x4]                            # eax = Stack[0:3]
+   0x0000555555555144 <+31>:    cdqe                                                      # Convert dword to qword (eax to rax)
+   0x0000555555555146 <+33>:    lea    rdx,[rip+0x2edb]        # 0x555555558028 <flag>    # Läd Inhalt von Adresse in rdx 
+   0x000055555555514d <+40>:    movzx  eax,BYTE PTR [rax+rdx*1]                           # Move with Zero Extend den Inhalt von der Adresse an der Stelle eax in eax
+   0x0000555555555151 <+44>:    xor    eax,0x42                                           # xor den Wert 
+   0x0000555555555154 <+47>:    mov    edx,eax                                            # Erg. in edx speichern
+   0x0000555555555156 <+49>:    mov    eax,DWORD PTR [rbp-0x4]                            # eax = Stack[0:3]
+   0x0000555555555159 <+52>:    cdqe                                                      # Convert dword to qword (eax to rax)
+   0x000055555555515b <+54>:    mov    BYTE PTR [rbp+rax*1-0xc],dl                        # Unterstes Byte von rdx in den Stack an Stelle 12 
+   0x000055555555515f <+58>:    add    DWORD PTR [rbp-0x4],0x1                            # erhöhe stack[0:3] um eins
+   0x0000555555555163 <+62>:    cmp    DWORD PTR [rbp-0x4],0x6                            # wenn stack[0:3] == 6 
+   0x0000555555555167 <+66>:    jle    0x555555555141 <main+28>                           # wenn kleiner, dann sprint zurück in +28 (Loop)
+   0x0000555555555169 <+68>:    mov    eax,0x0                                            # Erg von der Methode = 0 (erfolgreich)
+=> 0x000055555555516e <+73>:    pop    rbp                                                # Calling Convention Leave
+   0x000055555555516f <+74>:    ret                                                       # return 
+End of assembler dump
+
+Anmerkungen: 
+- Little Endian!!! Deswegen zuerst die untere Adressen befüllen (d.h. zuerst 3 dann 2 dann 1)
+==> Stack 0:3 := Zählervariable i 
+==> Stack 5:12 := Entschlüsselter Key (xor mit Flag; 6 Byte groß)
+==> Loop: for(int i = 0; i <= 6 ; i++)
+==> in der Loop das Xoren + speichern in 5:12 
+
+==> entschlüsselter String ist vor dem return von main auf dem Stack! Und 7 Byte lang
+==> beim Base Pointer von -12 bis - 5
+
+pwndbg> x/-7b $rbp-5
+0x7fffffffdae4: 33      51      49      51      51      55      33
+
+==> Dezimal Values hier! Little Endian! Sind Byte Weise!
+
+0x7fffffffdae4: 0x21    0x33    0x31    0x33    0x33    0x37    0x21
+Oder in Hex
+
+Command erklärt: x := Hex /-7b, d.h. 7 Byte nach unten von $rbp -5 (Adresse von rbp -5 )
+
+Oder: 
+pwndbg> x/1x $rbp -12
+0x7fffffffdae4: 0x33313321
+pwndbg> x/1x $rbp -8
+0x7fffffffdae8: 0x00213733

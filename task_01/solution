@@ -18,7 +18,7 @@ def main():
 
     decHeader = bytearray(64) # Make an empty Bytearray for the decrypted Header
 
-    for i in range(0,2**8): # For all 8 Bit Combinations
+    for i in range(0, 2**8): # For all 8 Bit Combinations
         for j in range(0,64): # XOR the Header with run i
             decHeader[j] = header[j] ^ i 
         
