@@ -126,7 +126,42 @@
  - gleiches gilt für Sections aus ELF!
  
  -------------------------------------
- ## Task 11
+ ## Task 11: Key Reverse Engineering II ~abgeschlossen 
+ ### Theorie Aspekte
+ - nun mit dem modul z3 den key herausfinden 
+
+ - Bedingungen relativ leicht mit Ghidra/gdb erkennbar 
+
+
+ ### Anmerkungen
+ - wieder bissel Logik + Assembler 
+ 
+ -------------------------------------
+ ## Task 12: Funktions Tracer mit GDB Scripten implementieren ~abgeschlossen
+ ### Theorie Aspekte
+ - Funktionen Tracen (Ablauf)
+ 
+ - relativ leicht mit rbreak
+
+ ### Anmerkungen
+ - GDB Scripte nicht sooo wichtig, aber wissen wie die funktionieren!
+ 
+ -------------------------------------
+ ## Task 13: Programm Analysis I ~abgeschlossen(!) 
+ ### Theorie Aspekte
+ - Programm welches einen Flag mit einer Signal Method printet (SEGFault)
+
+ - Overflow wird ausgelöst durch strcpy welches ab 16 Bytes einen Overflow macht und RBP zerstört (oder auch return danach)
+
+ ### Anmerkungen
+ - File war stripped, d.h. keine Symbole! 
+
+ - ==> entry Point nutzen aus readelf -h
+
+ - stripped Binaries nochmal angucken!
+ 
+ -------------------------------------
+ ## Task 14 TO DO
  ### Theorie Aspekte
  - x
 
@@ -134,7 +169,7 @@
  - y
  
  -------------------------------------
- ## Task 12
+ ## Task 15 TO DO
  ### Theorie Aspekte
  - x
 
@@ -142,7 +177,31 @@
  - y
  
  -------------------------------------
- ## Task 13
+ ## Task 16 Buffer Overflow I ~abgeschlossen
+ ### Theorie Aspekte
+ - Programm mit Bufferoverflow + Methode die unseren Flag ausprintet 
+
+ - alle Sicherheitsmechanismen waren aus, d.h. einfach in saved rip (from call) die Adresse von der Methode reinschreiben die den Flag ausprintet
+
+ ### Anmerkungen
+ - Stack Verständnis ist wichtig
+ 
+ -------------------------------------
+ ## Task 17 Buffer overflow II ~abgeschlossen
+ ### Theorie Aspekte
+ - Programm mit Bufferoverflow und Stack Adresse leak
+
+ - alle Sicherheitsmechanismen waren aus, d.h. einfach den Stack missbrauchen da er executable ist 
+
+ - d.h. rip springt zurück auf den Stack, landet in Nope Slede, landet in Shellcode der execve ausführt und das Flag printet
+
+ ### Anmerkungen
+ - Stack Verständnis wieder wichtig
+
+ - Nur möglich, da der Stack exe ist (NX Bit ist aus) + weil wir eine Adresse vom ASLR haben!
+ 
+ -------------------------------------
+ ## Task 18 TO DO!
  ### Theorie Aspekte
  - x
 
@@ -150,60 +209,42 @@
  - y
  
  -------------------------------------
- ## Task 14
+ ## Task 19 Buffer Overflow III ~abgeschlossen (Nochmal machen!)
  ### Theorie Aspekte
- - x
+ - Programm hatte alle Sicherheitsvorkehrungen an + halt Bufferoverflow via read (ließt bis '\0')
+
+ - d.h. man musste 1 den Canary brute forcen (da wir in einer Loop waren konnten wir den Byte für Byte holen)
+
+ - danach brauchte man eine Adresse die im gleichen Bereich liegt wie givemeashellplz (z.B. start/main)
+
+ - mit denen kann man den relativen Offset berechnen aus readelf -s 
+
+ - ==> damit kann man den return call überschreiben, sodass das Programm zu givemeashellplz zurückkehrt 
 
  ### Anmerkungen
- - y
+ - sehr viel Theorie in der Aufgabe (auch relativ schwer!)
+
+ - Calling Conventions MÜSSEN NICHT EINGEHALTEN WERDEN! (z.B. für Stack allignment etc)
+
+ - Stack Canaries, NX, ASLR, PIE verstehen
  
  -------------------------------------
- ## Task 15
+ ## Task 20 ASLR/Canariy Brutefoce ~abgeschlossen (angucken)
  ### Theorie Aspekte
- - x
+ - Forking Server der pro Verbindung sich klont und diese bearbeitet
 
- ### Anmerkungen
- - y
+ - durchs forken wird der canary/aslr offset übernommen
+
+ - ==> wenn der Canary gebruteforced ist wissen wir eine Adresse 
  
- -------------------------------------
- ## Task 16
- ### Theorie Aspekte
- - x
+ - den relativen offset zu givemeashellplz wissen wir ==> müssen nur die ersten 4 Byte von ASLR bruteforcen
 
  ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 17
- ### Theorie Aspekte
- - x
+ - sind nur 16 Kombinationen für ASLR Force
 
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 18
- ### Theorie Aspekte
- - x
+ - sind 256 (2^8) * 8 viele Kombinationen für den Canary 
 
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 19
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 20
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
+ - relativ leichte Aufgabe wenn man die Theorie gerafft hat 
  
  -------------------------------------
  ## Task 21
