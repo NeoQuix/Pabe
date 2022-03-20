@@ -100,12 +100,20 @@
  - immernoch readelf sehr wichtig! 
  
  -------------------------------------
- ## Task 09: TO DO
+ ## Task 09: Binaries/ELF Files .text ~abgeschlossen
  ### Theorie Aspekte
- - x
+ - ProgrammCode in der Binary fixen 
+
+ - disassemble _start für den Code (und dort sieht man einen write syscall + exit syscall) ==> man weiß was man überschreiben muss
+
+ - mit readelf -e kann man den Offset für die .text Section finden ==> dort rein schreiben
 
  ### Anmerkungen
- - y
+ - hier war die syscall nummer + size falsch im ersten block + syscall selbst wurde nicht aufgerufen (int 0x80)
+
+ - aufpassen bei Offsets im schreiben
+
+ - mit Elftools deutlich cleaner möglich aber KA WEIL KEINE DOKUMENTATION!!!!
  
  -------------------------------------
  ## Task 10: Unicorn CPU Emulator ~abgeschlossen
@@ -169,12 +177,16 @@
  - y
  
  -------------------------------------
- ## Task 15 TO DO
+ ## Task 15 Runtime Reverse Engineering III ~abgeschlossen
  ### Theorie Aspekte
- - x
+ - wieder ein Flag der nur in runtime existiert, jedoch deutlich schwerer zu extrahieren ist 
+
+ - muss man via gdb script machen, welches mit watchpoints die Register ausliest
+
+ - in eax ist immer das erg von der i-ten Iteration wenn ecx == counter ist (zählt von 0x15 bis 0x0 runter)
 
  ### Anmerkungen
- - y
+ - fixed script damit es lesbarer ist (loop statt 200 Zeilen)
  
  -------------------------------------
  ## Task 16 Buffer Overflow I ~abgeschlossen
@@ -201,12 +213,14 @@
  - Nur möglich, da der Stack exe ist (NX Bit ist aus) + weil wir eine Adresse vom ASLR haben!
  
  -------------------------------------
- ## Task 18 TO DO!
+ ## Task 18 Ret2LibC ~TO DO
  ### Theorie Aspekte
- - x
+ - non exec Stack, geleakte Adressen + Bufferoverflow
+ ==> ret2libc, d.h. base von libc berechnen, system/bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument dadrüber nach cdecl!)
+
 
  ### Anmerkungen
- - y
+ - ASLR, NX, Stack + pwntools (weil es alles DEUTLICH leichter macht!)
  
  -------------------------------------
  ## Task 19 Buffer Overflow III ~abgeschlossen (Nochmal machen!)
@@ -224,7 +238,7 @@
  ### Anmerkungen
  - sehr viel Theorie in der Aufgabe (auch relativ schwer!)
 
- - Calling Conventions MÜSSEN NICHT EINGEHALTEN WERDEN! (z.B. für Stack allignment etc)
+ - Calling Conventions MÜSSEN NICHT EINGEHALTEN WERDEN! (z.B. für Stack alignment etc)
 
  - Stack Canaries, NX, ASLR, PIE verstehen
  
