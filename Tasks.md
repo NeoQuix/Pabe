@@ -169,12 +169,18 @@
  - stripped Binaries nochmal angucken!
  
  -------------------------------------
- ## Task 14 TO DO
+ ## Task 14 Programm Analysis II mit HTML ~abgeschlossen 
  ### Theorie Aspekte
- - x
+ - ruft Domain aus einer File aus, parst HTML Erg. und nimmt den Titel davon
+
+ - den Titel verschlüsselt er Byteweise ==> Erg ist der String davon
+
+ - man musste nun die selben Funktionen in python reimplementieren (d.h. die ifs/while übersetzen, damit dasselbe rauskommt)
 
  ### Anmerkungen
- - y
+ - typischer Ablauf bei der Analyse mit Ghidra/GDB (Schritt für Schritt die Funktionen)
+
+ - auch wieder großer Teil Reverse Engineering!
  
  -------------------------------------
  ## Task 15 Runtime Reverse Engineering III ~abgeschlossen
