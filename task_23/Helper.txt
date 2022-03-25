@@ -1,0 +1,57 @@
+C Code:
+#include <unistd.h>
+
+int main(){
+  char* argv[] = { "./execute_me_with_rop" , "foo", "bar", NULL };
+  char* envp[] = { "PABE=FUN",  NULL };
+  execve("./execute_me_with_rop", argv, envp);
+  return 0;
+}
+
+Kompiliert mit gcc!
+
+Anmerkungen: 
+- logischer Weise muss ich mir die String Arrays selbst erstellen im Speicher
+==> muss ein Array sein mit 4 Adressen {addr, addr2, addr3, 0} ==> 8*4 Byte = 32 Byte
+==> zweites Array: {addr4, 0} ==> 16 Byte
+==> brauche folgende Strings + deren Adressen: "./execute_me_with_rop\0", "foo\0", "bar\0", "PABE=FUN\0"
+
+
+Ablauf: 
+1. Leak Libc Base
+==> Buffer ist 32 Groß, danach 8 Byte saved rbp, danach saved rip (__libc_start_call_main+128)
+2. ==> mit der geleakten adresse - 128 - dem Symbol kriegt man die libcbase 
+
+
+pwndbg> disass main
+Dump of assembler code for function main:
+   0x0000000000001149 <+0>:     push   rbp
+   0x000000000000114a <+1>:     mov    rbp,rsp
+   0x000000000000114d <+4>:     sub    rsp,0x40
+   0x0000000000001151 <+8>:     mov    rax,QWORD PTR fs:0x28
+   0x000000000000115a <+17>:    mov    QWORD PTR [rbp-0x8],rax
+   0x000000000000115e <+21>:    xor    eax,eax
+   0x0000000000001160 <+23>:    lea    rax,[rip+0xe9d]        # 0x2004
+   0x0000000000001167 <+30>:    mov    QWORD PTR [rbp-0x30],rax
+   0x000000000000116b <+34>:    lea    rax,[rip+0xea8]        # 0x201a
+   0x0000000000001172 <+41>:    mov    QWORD PTR [rbp-0x28],rax
+   0x0000000000001176 <+45>:    lea    rax,[rip+0xea1]        # 0x201e
+   0x000000000000117d <+52>:    mov    QWORD PTR [rbp-0x20],rax
+   0x0000000000001181 <+56>:    mov    QWORD PTR [rbp-0x18],0x0
+   0x0000000000001189 <+64>:    lea    rax,[rip+0xe92]        # 0x2022
+   0x0000000000001190 <+71>:    mov    QWORD PTR [rbp-0x40],rax
+   0x0000000000001194 <+75>:    mov    QWORD PTR [rbp-0x38],0x0
+   0x000000000000119c <+83>:    lea    rdx,[rbp-0x40]
+   0x00000000000011a0 <+87>:    lea    rax,[rbp-0x30]
+   0x00000000000011a4 <+91>:    mov    rsi,rax
+   0x00000000000011a7 <+94>:    lea    rax,[rip+0xe56]        # 0x2004
+   0x00000000000011ae <+101>:   mov    rdi,rax
+   0x00000000000011b1 <+104>:   call   0x1040 <execve@plt>
+   0x00000000000011b6 <+109>:   mov    eax,0x0
+   0x00000000000011bb <+114>:   mov    rdx,QWORD PTR [rbp-0x8]
+   0x00000000000011bf <+118>:   sub    rdx,QWORD PTR fs:0x28
+   0x00000000000011c8 <+127>:   je     0x11cf <main+134>
+   0x00000000000011ca <+129>:   call   0x1030 <__stack_chk_fail@plt>
+   0x00000000000011cf <+134>:   leave  
+   0x00000000000011d0 <+135>:   ret    
+End of assembler dump.

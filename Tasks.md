@@ -219,10 +219,10 @@
  - Nur möglich, da der Stack exe ist (NX Bit ist aus) + weil wir eine Adresse vom ASLR haben!
  
  -------------------------------------
- ## Task 18 Ret2LibC ~TO DO
+ ## Task 18 Ret2LibC ~TO DO (Theorie einfach)
  ### Theorie Aspekte
  - non exec Stack, geleakte Adressen + Bufferoverflow
- ==> ret2libc, d.h. base von libc berechnen, system/bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument dadrüber nach cdecl!)
+ ==> ret2libc, d.h. base von libc berechnen, system/bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument darüber nach cdecl!)
 
 
  ### Anmerkungen
@@ -267,7 +267,74 @@
  - relativ leichte Aufgabe wenn man die Theorie gerafft hat 
  
  -------------------------------------
- ## Task 21
+ ## Task 21 Heap Buffer Overflow ~abgeschlossen
+ ### Theorie Aspekte
+ - Heap Buffer Overflows (kein Metadata Overflow)
+
+ - Adresse von puts liegt auf dem Heap ==> diese leaken + durch system ersetzen
+
+ - Heap Layout:
+
+ - simple Note (eig. 60 Bytes) ___ printable Note (72 Bytes); Abstand zu puts von printable Note sind 143 Bytes
+
+ - Leak via read
+
+ - mit puts@got kann man die libc base berechnen ==> system + /bin/sh
+
+ - /bin/sh landet in rdi durch den call von puts mit dem Inhalt der Note! 
+
+ ### Anmerkungen
+ - Heap Layout wichtig; Offsets wichtig; Wachstumsrichtung!
+
+ - Kein Rop nötig weil puts mit argument was wir bestimmen aufgerufen wird
+
+ - Abstand ermittelt durch Overflow (kann man aber auch berechnen mit den Infos von malloc (60 + 8 + 60 + 8 + 8 (-1 weil ja immer newline mit geschickt wird))
+ 
+ - generell sehr schöne Heap Aufgabe, Overflow bissel schwerer zu finden
+
+ -------------------------------------
+ ## Task 22 Heap Visualization ~abgeschlossen (nicht programmiert)
+ ### Theorie Aspekte
+ - man sollte besser verstehen wie die Mainarena, bins (fastbins, tcachebins, smallbins, largebins funktionieren) und wie man sie parsen kann
+
+ - parsen glaube ich wird nicht in der Klausur dran kommen, dennoch einzelne Elemente Interessant!
+
+ - gdb scripte sind sooo Müll!
+
+ ### Anmerkungen
+ - wissen wie die alle aufgebaut sind + unterschiede 
+
+ - tcachebins auch!
+
+ - relativ viel Pointer gespiele; unlink Exploit damit auch besser verstehen!
+ 
+ -------------------------------------
+ ## Task 23: ROP ~ abgeschlossen (jaein)
+ ### Theorie Aspekte
+ - mittels ROP aus einer Binary die andere aufrufen 
+
+ 1. Programm Base berechnen ==> mittels puts main oder _start vom Stack leaken
+ ==> Base Offset für Main
+
+ 2. Danach erste rop die puts aufruft mit der Adresse von puts@got als Parameter + danach das Programm neu starten indem man main aufruft (bzw. dahin returnt)
+ ==> leaked puts adresse ==> libc base damit berechnenbar 
+
+ 3. Nun kann man die komplette ROP Chain machen (d.h. die Parameter erstellen + halt den Aufruf der Binary)
+ ==> bisschen anstregend manuell, aber machbar!
+
+ - hab die letzte Rop Chain nicht mehr gemacht, da die sehr ähnlich zum beispiel aus der Vorlesung ist und mehr tüfteln als wichtige Theorie
+
+ ### Anmerkungen
+ - readelf + offsets + aslr verstehen
+
+ - Segment/lib Mapping von ASLR verstehen
+
+ - Pwn Rop verstehen (ultra hexerei des Todes)
+
+ - Idee von ROP verstehen (ULTRA GEILE IDEE)
+ 
+ -------------------------------------
+ ## Task 24 Advanced Shellcode Crafting + ROP ~TODO
  ### Theorie Aspekte
  - x
 
@@ -275,7 +342,7 @@
  - y
  
  -------------------------------------
- ## Task 22
+ ## Task 25 C++ vTables ~ TODO
  ### Theorie Aspekte
  - x
 
@@ -283,7 +350,7 @@
  - y
  
  -------------------------------------
- ## Task 23
+ ## Task 26 Format String GOT Override ~ TODO
  ### Theorie Aspekte
  - x
 
@@ -291,7 +358,7 @@
  - y
  
  -------------------------------------
- ## Task 24
+ ## Task 27 ? ~TODO
  ### Theorie Aspekte
  - x
 
@@ -299,7 +366,7 @@
  - y
  
  -------------------------------------
- ## Task 25
+ ## Task 28 ? ~ TO DO
  ### Theorie Aspekte
  - x
 
@@ -307,7 +374,7 @@
  - y
  
  -------------------------------------
- ## Task 26
+ ## Task 29 TCache poisoning ~ TO DO
  ### Theorie Aspekte
  - x
 
@@ -315,31 +382,7 @@
  - y
  
  -------------------------------------
- ## Task 27
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 28
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 29
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 30
+ ## Task 30 Heap Feng Shui ~ TODO
  ### Theorie Aspekte
  - x
 

