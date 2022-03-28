@@ -35,3 +35,10 @@ Sehr nah an Folien dran
 - Aufruf bin/sh
 - Bufferoverflow um vorhandene Funktion aufzurufen
 - TCache Poisoning
+
+4. Note 1.0, Dauer: 30m Prüfung + 1m Notenklärung (eigene Prüfung)
+- Stackbuffer Overflow into Function Exploit erstellen + erklären + Stack aufmalen (cdecl Parameter Übergabe Fokus) ~ C Code
+- Rop nach machen (Code gegeben + schnipsel; Stack zeichnen) ~ Assembler Code
+- Tcache UAF Exploit erklären (relativ nah an den Folien) ~ C Code
+- ASAN sowohl Shadow Byte Erstellung als auch testen erklären + zeichnen + fragen zu ASAN (warum 8 byte etc.) ~ Assembler Code
+- EXIM Exploit erklären + Unterschied klar machen zu Folien ~ Bild

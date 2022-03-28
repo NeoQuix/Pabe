@@ -219,7 +219,7 @@
  - Nur möglich, da der Stack exe ist (NX Bit ist aus) + weil wir eine Adresse vom ASLR haben!
  
  -------------------------------------
- ## Task 18 Ret2LibC ~NICHT gemacht (Theorie schon)
+ ## Task 18 Ret2LibC ~nur Theorie
  ### Theorie Aspekte
  - non exec Stack, geleakte Adressen + Bufferoverflow
  ==> ret2libc, d.h. base von libc berechnen, system, /bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument darüber nach cdecl!)
@@ -295,7 +295,7 @@
  - generell sehr schöne Heap Aufgabe, Overflow bissel schwerer zu finden
 
  -------------------------------------
- ## Task 22 Heap Visualization ~abgeschlossen (nicht programmiert)
+ ## Task 22 Heap Visualization ~nur Theorie
  ### Theorie Aspekte
  - man sollte besser verstehen wie die Mainarena, bins (fastbins, tcachebins, smallbins, largebins funktionieren) und wie man sie parsen kann
 
@@ -311,7 +311,7 @@
  - relativ viel Pointer gespiele; unlink Exploit damit auch besser verstehen!
  
  -------------------------------------
- ## Task 23: ROP ~ abgeschlossen (jaein)
+ ## Task 23: ROP ~ abgeschlossen (teilweise)
  ### Theorie Aspekte
  - mittels ROP aus einer Binary die andere aufrufen 
 
@@ -336,7 +336,17 @@
  - Idee von ROP verstehen (ULTRA GEILE IDEE)
  
  -------------------------------------
- ## Task 24 Advanced Shellcode Crafting + ROP ~TODO
+ ## Task 24 Advanced Shellcode Crafting + ROP ~nur Theorie
+ ### Theorie Aspekte
+ - Shellcode Crafting, d.h. eigenen Code in Assembler schreiben + fixen, Nullbytes/bad chars löschen + testen
+
+ - mit ROP den Shellcode deployen
+
+ ### Anmerkungen
+ - relativ leichte Aufgabe, aber doch ein wenig nervig weil seeehhrr lange
+ 
+ -------------------------------------
+ ## Task 25 C++ vTables ~ Zu Faul
  ### Theorie Aspekte
  - x
 
@@ -344,15 +354,7 @@
  - y
  
  -------------------------------------
- ## Task 25 C++ vTables ~ TODO
- ### Theorie Aspekte
- - x
-
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 26 Format String GOT Override ~ TODO
+ ## Task 26 Format String GOT Override ~ abgeschlossen (teilweise)
  ### Theorie Aspekte
  - standard format string exploit 
  
@@ -405,7 +407,7 @@
  - formatstring hier nur für Leak wichtig; Fokus eher auf Heap + UAF
  
  -------------------------------------
- ## Task 29 TCache poisoning ~ Theorie gemacht!
+ ## Task 29 TCache poisoning ~ nur Theorie
  ### Theorie Aspekte
  - Tcache Poisoning + minimales Heap Fengshui
 
@@ -424,7 +426,7 @@
  - sonst sehr nah am Beispiel in den Folien!
  
  -------------------------------------
- ## Task 30 Heap Feng Shui + UAF + TCache ~ KEINE ZEIT, Theorie halbwegs ok, relativ komplex ==> für Klausur zu komplex
+ ## Task 30 Heap Feng Shui + UAF + TCache ~ nur Theorie (teilweise)
  ### Theorie Aspekte
  - Libc Leak via panic ==> Overflow bei scanf mit einem Byte (8 byte buffer, man holt sich 8, darf aber nur 7 + 1 machen!; panic liegt dahinter)
 
@@ -446,17 +448,39 @@
 
  ## Sicherheitsmechanismen 
  ### ASLR ~ Address Space Layout Randomization
- - 
+ - Randomisiert libc + stack + heap bei jeden Durchlauf
+
+ - Kernel Einstellung ==> jeder Prozess kriegt das
+
+ - Vorteile: Macht es schwerer, da Adressen unbekannt ==> man braucht einen Leak
+
+ - Schwächen: Bei Fork wird auch ASLR mitkopiert! Information Leaks können ASLR zunichte machen
 
  ### PIE ~ Position Independent Executeable
- - 
+ - randomisiert die Memory regions der Binary (z.B. .text)
+
+ - Vorteile: Wie bei ASLR, macht es schwerer zu pwnen
+
+ - Nachteile: Wie bei ASLR
 
  ### RELRO ~ Relocation Read Only
- - 
+ - Partical Relro: paar sections werden read only gemacht, für uns nicht interessant
+
+ - Full Relro: Linker holt alle Adressen vor start der binary (d.h. kein lazy loading mehr) + macht .got read only ==> kein got override mehr möglich
  
  ### Canaries ~ Stack Canaries
- - 
+ - liegen zwischen Stackframe und lokalen Vars. + gibt drei verschiedene Arten an Canaries
+
+ - Vorteile: Machen es schwerer an die ret adresse zu kommen, wenig overhead
+
+ - Nachteile: werden auch bei Fork kopiert, können gebruteforced werden, mit arbitarywrite kann der master canary überschrieben werden
 
  ### ASAN ~ Adress Sanatizer
- - 
+ - hilft speicher leaks, uaf etc. zu erkennen
+
+ - macht dies mit Redzones um Buffer ==> wenn man es überschreibt stopt das Programm
+
+ - Vorteile: Hilft Leaks zu finden sowohl auf Heap/Stack
+
+ - Nachteile: hoher performance loss (d.h. wenn fertig nicht damit kompilieren), hat falsch meldungen, kann bei hohen overflows es nicht mehr erkennen (wenn man über die Redzone geht)
  -------------------------------------
