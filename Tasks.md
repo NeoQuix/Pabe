@@ -219,17 +219,19 @@
  - Nur möglich, da der Stack exe ist (NX Bit ist aus) + weil wir eine Adresse vom ASLR haben!
  
  -------------------------------------
- ## Task 18 Ret2LibC ~TO DO (Theorie einfach)
+ ## Task 18 Ret2LibC ~NICHT gemacht (Theorie schon)
  ### Theorie Aspekte
  - non exec Stack, geleakte Adressen + Bufferoverflow
- ==> ret2libc, d.h. base von libc berechnen, system/bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument darüber nach cdecl!)
+ ==> ret2libc, d.h. base von libc berechnen, system, /bin/sh offset kriegen ==> ret vom stack auf system setzen (und halt bin/sh als argument darüber nach cdecl!)
+
+ - Wichtig: Pointer! d.h. die Adresse von /bin/sh übergeben und nehmen
 
 
  ### Anmerkungen
  - ASLR, NX, Stack + pwntools (weil es alles DEUTLICH leichter macht!)
  
  -------------------------------------
- ## Task 19 Buffer Overflow III ~abgeschlossen (Nochmal machen!)
+ ## Task 19 Buffer Overflow III ~abgeschlossen
  ### Theorie Aspekte
  - Programm hatte alle Sicherheitsvorkehrungen an + halt Bufferoverflow via read (ließt bis '\0')
 
@@ -249,7 +251,7 @@
  - Stack Canaries, NX, ASLR, PIE verstehen
  
  -------------------------------------
- ## Task 20 ASLR/Canariy Brutefoce ~abgeschlossen (angucken)
+ ## Task 20 ASLR/Canariy Brutefoce ~abgeschlossen
  ### Theorie Aspekte
  - Forking Server der pro Verbindung sich klont und diese bearbeitet
 
@@ -352,41 +354,109 @@
  -------------------------------------
  ## Task 26 Format String GOT Override ~ TODO
  ### Theorie Aspekte
- - x
+ - standard format string exploit 
+ 
+ - man musste den Offset finden wo der String selbst auf dem Stack ist 
+
+ - Libc Base leaken mit einer Adresse auf dem Stack (init z.B.)
+
+ - dann schreibt man die Adresse von puts@got am Anfang (write where) und muss die adresse von System 2 Byte weise reinschreiben (What)
+
+ - als letztes muss man "/bin/sh" in den formatstring schreiben und ist fertig (wenn puts aufgerufen wird)
+
+ ### Anmerkungen
+ - Offset relativ schwer berechenbar (gdb + Little Endian etc.)
+
+ - Formatstring struktur verstehen
+ 
+ -------------------------------------
+ ## Task 27 Format String + ROP ~abgeschlossen
+ ### Theorie Aspekte
+ - Zwei Bugs sind: Format String via argv[1] + stack buffer overflow via gets
+
+ - 1. Leak Stack Canary + Libc base via Format String (%p)
+    
+ - 2. gets Overflow Canary + dann ret für ROP
+
+ - 3. ROP macht dann einfach einen execve("/bin/sh")
+    ==> /bin/sh muss dabei in rw bereich von libc geschrieben werden! 
+    ==> entweder offset für Datenstrukturen oder die Base!
+
+ ### Anmerkungen
+ - 64 Bit Calling Convention beachten! ==> erste 6 Leaks sind Register ==> Offset für Stack immer + 6 rechnen! (also für format string)
+
+ - Exe main NICHT nötig, da wir nur von libc rop machen!
+
+ - Außerdem: call funktioniert nur mit base ==> müssen es manuell machen, also r.find_gadget()
+ 
+ -------------------------------------
+ ## Task 28 UAF (+ Format String Exploit) ~abgeschlossen
+ ### Theorie Aspekte
+ - man musste den "Dangeling Pointer" + UAF erkennen
+
+ - heap fengshui war NICHT nötig, aber theoretisch wichtig
+ ==> Befehle so nutzen, dass user auf der selben Stelle allokiert wird wie der alte Printer und der Dangeling Pointer drauf zeigt (waren fastbins also LIFO)
+
+ - Formatstring exploit um libc base zu leaken
+
+ - genauen Ablauf siehe task28
+
+ ### Anmerkungen
+ - formatstring hier nur für Leak wichtig; Fokus eher auf Heap + UAF
+ 
+ -------------------------------------
+ ## Task 29 TCache poisoning ~ Theorie gemacht!
+ ### Theorie Aspekte
+ - Tcache Poisoning + minimales Heap Fengshui
+
+ - Erst mal Adressen leaken von libc + Binary (binary kriegt man geschenkt von der ATM backdoor func.)
+
+ - Allokation in Fastbin schicken + UAF nutzen um *next zu überschreiben auf free@got 
+
+ - später dann den Chunk zurück holen + bei free@got die adresse von atm_backdoor reinschreiben
+    ==> bei nächstem free wird atm_backdoor aufgerufen was wiederum system aufruft
+
+ - dann später free aufrufen (wichtig parameter von free muss "/bin/sh" sein!)
+
+ ### Anmerkungen
+ - Heap/Bins verständniss, LIFO Structure, Fastbins etc. 
+
+ - sonst sehr nah am Beispiel in den Folien!
+ 
+ -------------------------------------
+ ## Task 30 Heap Feng Shui + UAF + TCache ~ KEINE ZEIT, Theorie halbwegs ok, relativ komplex ==> für Klausur zu komplex
+ ### Theorie Aspekte
+ - Libc Leak via panic ==> Overflow bei scanf mit einem Byte (8 byte buffer, man holt sich 8, darf aber nur 7 + 1 machen!; panic liegt dahinter)
+
+ - 
 
  ### Anmerkungen
  - y
  
  -------------------------------------
- ## Task 27 ? ~TODO
- ### Theorie Aspekte
- - x
-
+ ## Pwn Tools Notes 
  ### Anmerkungen
- - y
+ - kann seeeehhhrrrr vieles leichter machen
+
+ - libcbase wird automatisch berechnet (ka. wie; aber tut es; trotzdem wissen wie es geht); d.h. ASLR wird damit geknackt 
+
+ - exebase kann es nicht ausrechnen? 
  
  -------------------------------------
- ## Task 28 ? ~ TO DO
- ### Theorie Aspekte
- - x
 
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 29 TCache poisoning ~ TO DO
- ### Theorie Aspekte
- - x
+ ## Sicherheitsmechanismen 
+ ### ASLR ~ Address Space Layout Randomization
+ - 
 
- ### Anmerkungen
- - y
- 
- -------------------------------------
- ## Task 30 Heap Feng Shui ~ TODO
- ### Theorie Aspekte
- - x
+ ### PIE ~ Position Independent Executeable
+ - 
 
- ### Anmerkungen
- - y
+ ### RELRO ~ Relocation Read Only
+ - 
  
+ ### Canaries ~ Stack Canaries
+ - 
+
+ ### ASAN ~ Adress Sanatizer
+ - 
  -------------------------------------

